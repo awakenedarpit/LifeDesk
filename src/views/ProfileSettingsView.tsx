@@ -32,8 +32,8 @@ export const ProfileSettingsView: React.FC = () => {
   const [phone, setPhone] = useState(user.phone);
   const [college, setCollege] = useState(user.college);
   const [course, setCourse] = useState(user.course);
-  const [year, setYear] = useState(user.year || '4th Year');
-  const [semester, setSemester] = useState(user.semester || 'Sem VII');
+  const [year, setYear] = useState(user.year || '1st Year');
+  const [semester, setSemester] = useState(user.semester || 'Sem 1');
   const [currentSemester, setCurrentSemester] = useState(user.currentSemester);
   const [bio, setBio] = useState(user.bio);
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl);
@@ -45,8 +45,8 @@ export const ProfileSettingsView: React.FC = () => {
     setPhone(user.phone);
     setCollege(user.college);
     setCourse(user.course);
-    setYear(user.year || '4th Year');
-    setSemester(user.semester || 'Sem VII');
+    setYear(user.year || '1st Year');
+    setSemester(user.semester || 'Sem 1');
     setCurrentSemester(user.currentSemester);
     setBio(user.bio);
     setAvatarUrl(user.avatarUrl);
@@ -87,8 +87,8 @@ export const ProfileSettingsView: React.FC = () => {
     setPhone(user.phone);
     setCollege(user.college);
     setCourse(user.course);
-    setYear(user.year || '4th Year');
-    setSemester(user.semester || 'Sem VII');
+    setYear(user.year || '1st Year');
+    setSemester(user.semester || 'Sem 1');
     setCurrentSemester(user.currentSemester);
     setBio(user.bio);
     setAvatarUrl(user.avatarUrl);
@@ -269,7 +269,7 @@ export const ProfileSettingsView: React.FC = () => {
                 Academic Year
               </span>
               <span className="font-semibold text-on-surface text-sm mt-0.5 block">
-                {user.year || '4th Year'}
+                {user.year || '1st Year'}
               </span>
             </div>
 
@@ -278,7 +278,7 @@ export const ProfileSettingsView: React.FC = () => {
                 Academic Semester
               </span>
               <span className="font-semibold text-on-surface text-sm mt-0.5 block">
-                {user.semester || 'Sem VII'}
+                {user.semester || 'Sem 1'}
               </span>
             </div>
 
@@ -364,7 +364,7 @@ export const ProfileSettingsView: React.FC = () => {
                   type="text"
                   value={year}
                   onChange={(e) => setYear(e.target.value)}
-                  placeholder="e.g. 4th Year"
+                  placeholder="e.g. 1st Year"
                   className="w-full h-10 px-3 bg-surface-container-low rounded-lg text-on-surface text-sm outline-none"
                 />
               </div>
@@ -377,7 +377,7 @@ export const ProfileSettingsView: React.FC = () => {
                   type="text"
                   value={semester}
                   onChange={(e) => setSemester(e.target.value)}
-                  placeholder="e.g. Sem VII"
+                  placeholder="e.g. Sem 1"
                   className="w-full h-10 px-3 bg-surface-container-low rounded-lg text-on-surface text-sm outline-none"
                 />
               </div>
