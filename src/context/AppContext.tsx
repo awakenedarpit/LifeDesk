@@ -500,9 +500,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         // Auth account deletion must happen server-side using the Supabase service-role key.
         // The Edge Function validates the current session before deleting auth.users.
-        const { error } = await client.functions.invoke('delete-account', {
-          method: 'POST',
-        });
+        const { error } = await client.functions.invoke('delete-account');
 
         if (error) {
           console.error('Account deletion failed:', error);
