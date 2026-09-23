@@ -30,7 +30,7 @@ export default defineConfig(() => {
               src: '/LifeDesk/lifedesk-pwa-192.png',
               sizes: '192x192',
               type: 'image/png',
-              purpose: 'any',
+              purpose: 'any maskable',
             },
             {
               src: '/LifeDesk/lifedesk-pwa-512.png',
