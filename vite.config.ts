@@ -12,7 +12,7 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['lifedesk-icon.svg', 'lifedesk-pwa-192.png', 'lifedesk-pwa-512.png'],
+        includeAssets: ['lifedesk-icon.svg', 'lifedesk-pwa.svg'],
         manifest: {
           id: '/LifeDesk/',
           name: 'LifeDesk - Student Command Center',
@@ -26,15 +26,15 @@ export default defineConfig(() => {
           scope: '/LifeDesk/',
           icons: [
             {
-              src: '/LifeDesk/lifedesk-pwa-192.png',
+              src: '/LifeDesk/lifedesk-pwa.svg',
               sizes: '192x192',
-              type: 'image/png',
+              type: 'image/svg+xml',
               purpose: 'any maskable',
             },
             {
-              src: '/LifeDesk/lifedesk-pwa-512.png',
+              src: '/LifeDesk/lifedesk-pwa.svg',
               sizes: '512x512',
-              type: 'image/png',
+              type: 'image/svg+xml',
               purpose: 'any maskable',
             },
           ],
