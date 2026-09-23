@@ -1,0 +1,6 @@
+{
+  "name": "LifeDesk - Student Command Center",
+  "description": "Your Life, Organized. Premium personal student command-center for tasks, deadlines, calendar, hackathons, and multi-source finances.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
