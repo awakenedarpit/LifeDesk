@@ -14,6 +14,7 @@ export default defineConfig(() => {
         registerType: 'autoUpdate',
         includeAssets: ['lifedesk-icon.svg'],
         manifest: {
+          id: '/LifeDesk/',
           name: 'LifeDesk - Student Command Center',
           short_name: 'LifeDesk',
           description: 'Your Life, Organized. Personal student command center.',
@@ -24,7 +25,18 @@ export default defineConfig(() => {
           start_url: '/LifeDesk/',
           scope: '/LifeDesk/',
           icons: [
-            {src: '/LifeDesk/lifedesk-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable'},
+            {
+              src: '/LifeDesk/lifedesk-icon.svg',
+              sizes: '192x192',
+              type: 'image/svg+xml',
+              purpose: 'any maskable',
+            },
+            {
+              src: '/LifeDesk/lifedesk-icon.svg',
+              sizes: '512x512',
+              type: 'image/svg+xml',
+              purpose: 'any maskable',
+            },
           ],
         },
         workbox: {
@@ -41,7 +53,7 @@ export default defineConfig(() => {
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
