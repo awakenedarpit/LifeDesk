@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
+import { Transaction, PaymentSource, IncomeDestination, ExpenseCategory } from '../types';
 
 export const MoneyView: React.FC = () => {
   const {
@@ -9,11 +10,13 @@ export const MoneyView: React.FC = () => {
     monthExpenses,
     cardSpending,
     transactions,
+    editTransaction,
     deleteTransaction,
     openModal,
   } = useApp();
 
   const [txToDelete, setTxToDelete] = useState<string | null>(null);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'expense' | 'income' | 'transfer'>('all');
 
   const formatRupee = (val: number) => `₹${val.toLocaleString('en-IN')}`;
@@ -299,13 +302,22 @@ export const MoneyView: React.FC = () => {
                           </span>
                         </td>
                         <td className="py-3 text-right pr-1">
-                          <button
-                            onClick={() => setTxToDelete(tx.id)}
-                            className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/20 transition-colors"
-                            title="Delete transaction"
-                          >
-                            <span className="material-symbols-outlined text-[17px]">delete</span>
-                          </button>
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              onClick={() => setEditingTx(tx)}
+                              className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors"
+                              title="Edit transaction"
+                            >
+                              <span className="material-symbols-outlined text-[17px]">edit</span>
+                            </button>
+                            <button
+                              onClick={() => setTxToDelete(tx.id)}
+                              className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/20 transition-colors"
+                              title="Delete transaction"
+                            >
+                              <span className="material-symbols-outlined text-[17px]">delete</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -368,8 +380,16 @@ export const MoneyView: React.FC = () => {
                       </div>
 
                       <button
+                        onClick={() => setEditingTx(tx)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors"
+                        title="Edit transaction"
+                      >
+                        <span className="material-symbols-outlined text-[17px]">edit</span>
+                      </button>
+                      <button
                         onClick={() => setTxToDelete(tx.id)}
                         className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/20 transition-colors"
+                        title="Delete transaction"
                       >
                         <span className="material-symbols-outlined text-[17px]">delete</span>
                       </button>
@@ -381,6 +401,185 @@ export const MoneyView: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Edit Transaction Modal */}
+      {editingTx && (
+        <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-surface-container-lowest border border-surface-container-high w-full max-w-md rounded-2xl p-5 shadow-2xl flex flex-col gap-3.5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-2 border-b border-surface-container">
+              <h3 className="font-headline-md text-base sm:text-lg text-on-surface font-bold">
+                Edit Transaction
+              </h3>
+              <button
+                className="w-8 h-8 rounded-full text-on-surface-variant hover:text-on-surface flex items-center justify-center"
+                onClick={() => setEditingTx(null)}
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                editTransaction(editingTx.id, editingTx);
+                setEditingTx(null);
+              }}
+              className="flex flex-col gap-3"
+            >
+              <div>
+                <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                  Description
+                </label>
+                <input
+                  required
+                  type="text"
+                  value={editingTx.description}
+                  onChange={(e) => setEditingTx({ ...editingTx, description: e.target.value })}
+                  className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                    Amount (₹)
+                  </label>
+                  <input
+                    required
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={editingTx.amount}
+                    onChange={(e) => setEditingTx({ ...editingTx, amount: Number(e.target.value) || 0 })}
+                    className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                    Date
+                  </label>
+                  <input
+                    required
+                    type="date"
+                    value={editingTx.date}
+                    onChange={(e) => setEditingTx({ ...editingTx, date: e.target.value })}
+                    className="w-full h-10 px-2 bg-surface-container-low rounded-xl text-on-surface text-xs outline-none"
+                  />
+                </div>
+              </div>
+
+              {editingTx.type === 'expense' && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                      Payment Source
+                    </label>
+                    <select
+                      value={editingTx.paymentSource || 'UPI'}
+                      onChange={(e) => setEditingTx({ ...editingTx, paymentSource: e.target.value as PaymentSource })}
+                      className="w-full h-10 px-2.5 bg-surface-container-low rounded-xl text-on-surface text-xs font-semibold outline-none"
+                    >
+                      <option value="UPI">UPI (Liquid debit)</option>
+                      <option value="Cash">Cash (Liquid debit)</option>
+                      <option value="Card">Card (No liquid debit)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                      Category
+                    </label>
+                    <input
+                      type="text"
+                      value={editingTx.category}
+                      onChange={(e) => setEditingTx({ ...editingTx, category: e.target.value as ExpenseCategory })}
+                      className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-xs outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {editingTx.type === 'income' && (
+                <div>
+                  <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                    Destination Account
+                  </label>
+                  <select
+                    value={editingTx.destination || 'UPI'}
+                    onChange={(e) => setEditingTx({ ...editingTx, destination: e.target.value as IncomeDestination })}
+                    className="w-full h-10 px-2.5 bg-surface-container-low rounded-xl text-on-surface text-xs font-semibold outline-none"
+                  >
+                    <option value="UPI">UPI Account</option>
+                    <option value="Cash">Physical Cash</option>
+                  </select>
+                </div>
+              )}
+
+              {editingTx.type === 'transfer' && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                      Transfer From
+                    </label>
+                    <select
+                      value={editingTx.transferFrom || 'UPI'}
+                      onChange={(e) => setEditingTx({ ...editingTx, transferFrom: e.target.value as 'UPI' | 'Cash' })}
+                      className="w-full h-10 px-2.5 bg-surface-container-low rounded-xl text-on-surface text-xs font-semibold outline-none"
+                    >
+                      <option value="UPI">UPI</option>
+                      <option value="Cash">Cash</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                      Transfer To
+                    </label>
+                    <select
+                      value={editingTx.transferTo || 'Cash'}
+                      onChange={(e) => setEditingTx({ ...editingTx, transferTo: e.target.value as 'UPI' | 'Cash' })}
+                      className="w-full h-10 px-2.5 bg-surface-container-low rounded-xl text-on-surface text-xs font-semibold outline-none"
+                    >
+                      <option value="UPI">UPI</option>
+                      <option value="Cash">Cash</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                  Notes
+                </label>
+                <input
+                  type="text"
+                  value={editingTx.notes || ''}
+                  onChange={(e) => setEditingTx({ ...editingTx, notes: e.target.value })}
+                  placeholder="Optional notes"
+                  className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-xs outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingTx(null)}
+                  className="flex-1 h-10 rounded-xl bg-surface-container-high text-on-surface text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 h-10 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmModal

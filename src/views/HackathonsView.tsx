@@ -1,14 +1,32 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Hackathon, MilestoneStage, MilestoneStatus } from '../types';
+import { Hackathon, HackathonMilestone, MilestoneStage, MilestoneStatus } from '../types';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 
 export const HackathonsView: React.FC = () => {
-  const { hackathons, addHackathon, updateHackathon, deleteHackathon } = useApp();
+  const {
+    hackathons,
+    addHackathon,
+    updateHackathon,
+    deleteHackathon,
+    toggleMilestoneStatus,
+    addMilestone,
+    updateMilestone,
+    deleteMilestone,
+  } = useApp();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingHackathon, setEditingHackathon] = useState<Hackathon | null>(null);
   const [hackToDelete, setHackToDelete] = useState<string | null>(null);
+
+  // Milestone management modals
+  const [addMilestoneHackathonId, setAddMilestoneHackathonId] = useState<string | null>(null);
+  const [newMilestoneStage, setNewMilestoneStage] = useState('');
+  const [newMilestoneDate, setNewMilestoneDate] = useState(new Date().toISOString().split('T')[0]);
+  const [editingMilestoneData, setEditingMilestoneData] = useState<{
+    hackathonId: string;
+    milestone: HackathonMilestone;
+  } | null>(null);
 
   // New hackathon form state
   const [name, setName] = useState('');
@@ -61,23 +79,7 @@ export const HackathonsView: React.FC = () => {
   };
 
   const handleCycleMilestoneStatus = (hackId: string, milestoneId: string) => {
-    const hack = hackathons.find((h) => h.id === hackId);
-    if (!hack) return;
-
-    const nextMilestones = hack.milestones.map((m) => {
-      if (m.id === milestoneId) {
-        const nextStatus: MilestoneStatus =
-          m.status === 'Pending'
-            ? 'Current'
-            : m.status === 'Current'
-            ? 'Completed'
-            : 'Pending';
-        return { ...m, status: nextStatus };
-      }
-      return m;
-    });
-
-    updateHackathon(hackId, { milestones: nextMilestones });
+    toggleMilestoneStatus(hackId, milestoneId);
   };
 
   return (
@@ -165,12 +167,26 @@ export const HackathonsView: React.FC = () => {
                 </div>
               </div>
 
-              {/* 7-Stage Milestone Progression (Responsive horizontal scroll on mobile) */}
+              {/* Milestone Progression (Responsive horizontal scroll on mobile) */}
               <div className="flex flex-col gap-1.5 pt-2 border-t border-surface-container">
-                <span className="font-label-xs text-[11px] text-on-surface-variant font-bold uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[15px] text-primary">flag</span>
-                  7-Stage Milestone Pipeline (Tap to cycle status: Pending → Current → Completed)
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="font-label-xs text-[11px] text-on-surface-variant font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[15px] text-primary">flag</span>
+                    Milestone Pipeline (Tap card to cycle status • Use ✎ to edit)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddMilestoneHackathonId(hack.id);
+                      setNewMilestoneStage('');
+                      setNewMilestoneDate(new Date().toISOString().split('T')[0]);
+                    }}
+                    className="text-[11px] font-bold text-primary hover:underline flex items-center gap-0.5"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">add</span>
+                    <span>Add Milestone</span>
+                  </button>
+                </div>
 
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1 scrollbar-none">
                   {hack.milestones.map((ms, idx) => {
@@ -180,8 +196,7 @@ export const HackathonsView: React.FC = () => {
                     return (
                       <div
                         key={ms.id}
-                        onClick={() => handleCycleMilestoneStatus(hack.id, ms.id)}
-                        className={`min-w-[130px] p-2.5 rounded-xl border flex flex-col justify-between cursor-pointer select-none transition-all active:scale-95 ${
+                        className={`min-w-[140px] p-2.5 rounded-xl border flex flex-col justify-between select-none transition-all relative group ${
                           isDone
                             ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-800 dark:text-emerald-300'
                             : isCurr
@@ -193,15 +208,38 @@ export const HackathonsView: React.FC = () => {
                           <span className="text-[10px] font-mono font-bold">
                             #{idx + 1}
                           </span>
-                          <span className="material-symbols-outlined text-[16px]">
-                            {isDone ? 'check_circle' : isCurr ? 'timelapse' : 'radio_button_unchecked'}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingMilestoneData({ hackathonId: hack.id, milestone: ms });
+                              }}
+                              className="w-5 h-5 rounded flex items-center justify-center opacity-70 hover:opacity-100 hover:bg-surface-container"
+                              title="Edit milestone"
+                            >
+                              <span className="material-symbols-outlined text-[13px]">edit</span>
+                            </button>
+                            <span
+                              onClick={() => handleCycleMilestoneStatus(hack.id, ms.id)}
+                              className="material-symbols-outlined text-[16px] cursor-pointer"
+                              title="Click to cycle status"
+                            >
+                              {isDone ? 'check_circle' : isCurr ? 'timelapse' : 'radio_button_unchecked'}
+                            </span>
+                          </div>
                         </div>
-                        <span className="text-xs font-bold truncate block">
+                        <span
+                          onClick={() => handleCycleMilestoneStatus(hack.id, ms.id)}
+                          className="text-xs font-bold truncate block cursor-pointer"
+                        >
                           {ms.stage}
                         </span>
-                        <span className="text-[10px] uppercase font-bold mt-1 opacity-80">
-                          {ms.status}
+                        <span
+                          onClick={() => handleCycleMilestoneStatus(hack.id, ms.id)}
+                          className="text-[10px] uppercase font-bold mt-1 opacity-80 cursor-pointer"
+                        >
+                          {ms.status} {ms.date && `• ${ms.date.substring(5)}`}
                         </span>
                       </div>
                     );
@@ -404,6 +442,236 @@ export const HackathonsView: React.FC = () => {
                   className="flex-1 h-10 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm"
                 >
                   Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Milestone Modal */}
+      {addMilestoneHackathonId && (
+        <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-surface-container-lowest border border-surface-container-high w-full max-w-sm rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
+            <div className="flex items-center justify-between pb-2 border-b border-surface-container">
+              <h3 className="font-headline-md text-base text-on-surface font-bold">
+                Add Hackathon Milestone
+              </h3>
+              <button
+                className="w-8 h-8 rounded-full text-on-surface-variant hover:text-on-surface flex items-center justify-center"
+                onClick={() => setAddMilestoneHackathonId(null)}
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!newMilestoneStage) return;
+                addMilestone(addMilestoneHackathonId, {
+                  stage: newMilestoneStage as MilestoneStage,
+                  title: newMilestoneStage,
+                  date: newMilestoneDate,
+                  status: 'Pending',
+                });
+                setAddMilestoneHackathonId(null);
+                setNewMilestoneStage('');
+              }}
+              className="flex flex-col gap-3"
+            >
+              <div>
+                <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                  Milestone Name / Stage *
+                </label>
+                <input
+                  required
+                  type="text"
+                  value={newMilestoneStage}
+                  onChange={(e) => setNewMilestoneStage(e.target.value)}
+                  placeholder="e.g. Mentor Review, Mid-Term Demo"
+                  className="w-full h-11 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                  Target Date
+                </label>
+                <input
+                  type="date"
+                  value={newMilestoneDate}
+                  onChange={(e) => setNewMilestoneDate(e.target.value)}
+                  className="w-full h-10 px-2 bg-surface-container-low rounded-xl text-on-surface text-xs outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setAddMilestoneHackathonId(null)}
+                  className="flex-1 h-10 rounded-xl bg-surface-container-high text-on-surface text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 h-10 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm"
+                >
+                  Add Milestone
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Milestone Modal */}
+      {editingMilestoneData && (
+        <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-surface-container-lowest border border-surface-container-high w-full max-w-sm rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
+            <div className="flex items-center justify-between pb-2 border-b border-surface-container">
+              <h3 className="font-headline-md text-base text-on-surface font-bold">
+                Edit Milestone
+              </h3>
+              <button
+                className="w-8 h-8 rounded-full text-on-surface-variant hover:text-on-surface flex items-center justify-center"
+                onClick={() => setEditingMilestoneData(null)}
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                updateMilestone(
+                  editingMilestoneData.hackathonId,
+                  editingMilestoneData.milestone.id,
+                  editingMilestoneData.milestone
+                );
+                setEditingMilestoneData(null);
+              }}
+              className="flex flex-col gap-3"
+            >
+              <div>
+                <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                  Stage Name
+                </label>
+                <input
+                  required
+                  type="text"
+                  value={editingMilestoneData.milestone.stage}
+                  onChange={(e) =>
+                    setEditingMilestoneData({
+                      ...editingMilestoneData,
+                      milestone: {
+                        ...editingMilestoneData.milestone,
+                        stage: e.target.value as MilestoneStage,
+                        title: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full h-11 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={editingMilestoneData.milestone.status}
+                    onChange={(e) =>
+                      setEditingMilestoneData({
+                        ...editingMilestoneData,
+                        milestone: {
+                          ...editingMilestoneData.milestone,
+                          status: e.target.value as MilestoneStatus,
+                        },
+                      })
+                    }
+                    className="w-full h-10 px-2 bg-surface-container-low rounded-xl text-on-surface text-xs font-semibold outline-none"
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Current">Current</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Missed">Missed</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                    Target Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editingMilestoneData.milestone.date}
+                    onChange={(e) =>
+                      setEditingMilestoneData({
+                        ...editingMilestoneData,
+                        milestone: {
+                          ...editingMilestoneData.milestone,
+                          date: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full h-10 px-2 bg-surface-container-low rounded-xl text-on-surface text-xs outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                  Notes
+                </label>
+                <input
+                  type="text"
+                  value={editingMilestoneData.milestone.notes || ''}
+                  onChange={(e) =>
+                    setEditingMilestoneData({
+                      ...editingMilestoneData,
+                      milestone: {
+                        ...editingMilestoneData.milestone,
+                        notes: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder="Optional milestone details"
+                  className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-xs outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    deleteMilestone(
+                      editingMilestoneData.hackathonId,
+                      editingMilestoneData.milestone.id
+                    );
+                    setEditingMilestoneData(null);
+                  }}
+                  className="h-10 px-3 rounded-xl bg-error-container text-on-error-container text-xs font-bold flex items-center justify-center gap-1 hover:opacity-90 transition-opacity"
+                  title="Delete this milestone"
+                >
+                  <span className="material-symbols-outlined text-[16px]">delete</span>
+                  <span>Delete</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingMilestoneData(null)}
+                  className="flex-1 h-10 rounded-xl bg-surface-container-high text-on-surface text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 h-10 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm"
+                >
+                  Save
                 </button>
               </div>
             </form>

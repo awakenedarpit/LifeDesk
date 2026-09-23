@@ -6,7 +6,7 @@ import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 type CalendarMode = 'month' | 'week' | 'day';
 
 export const CalendarView: React.FC = () => {
-  const { events, deadlines, tasks, addEvent, deleteEvent, openModal } = useApp();
+  const { events, deadlines, tasks, addEvent, updateEvent, deleteEvent, openModal } = useApp();
 
   const [mode, setMode] = useState<CalendarMode>('month');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -14,6 +14,7 @@ export const CalendarView: React.FC = () => {
 
   // Quick event add
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [newDate, setNewDate] = useState(selectedDateStr);
@@ -419,14 +420,23 @@ export const CalendarView: React.FC = () => {
                   >
                     {item.type}
                   </span>
-                  {item.id.startsWith('evt-') && !item.referenceId && (
-                    <button
-                      onClick={() => setEventToDelete(item.id)}
-                      className="w-7 h-7 flex items-center justify-center text-on-surface-variant hover:text-error rounded-lg"
-                      title="Delete event"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">delete</span>
-                    </button>
+                  {item.type !== 'task' && item.type !== 'hackathon' && !item.referenceId && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditingEvent(item)}
+                        className="w-7 h-7 flex items-center justify-center text-on-surface-variant hover:text-on-surface rounded-lg"
+                        title="Edit event"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">edit</span>
+                      </button>
+                      <button
+                        onClick={() => setEventToDelete(item.id)}
+                        className="w-7 h-7 flex items-center justify-center text-on-surface-variant hover:text-error rounded-lg"
+                        title="Delete event"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -519,6 +529,121 @@ export const CalendarView: React.FC = () => {
                   className="flex-1 h-10 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm"
                 >
                   Save Event
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Event Modal */}
+      {editingEvent && (
+        <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-surface-container-lowest border border-surface-container-high w-full max-w-sm rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
+            <div className="flex items-center justify-between pb-2 border-b border-surface-container">
+              <h3 className="font-headline-md text-base text-on-surface font-bold">
+                Edit Calendar Event
+              </h3>
+              <button
+                className="w-8 h-8 rounded-full text-on-surface-variant hover:text-on-surface flex items-center justify-center"
+                onClick={() => setEditingEvent(null)}
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                updateEvent(editingEvent.id, {
+                  title: editingEvent.title,
+                  description: editingEvent.description,
+                  startDate: editingEvent.startDate,
+                  startTime: editingEvent.startTime,
+                  type: editingEvent.type,
+                });
+                setEditingEvent(null);
+              }}
+              className="flex flex-col gap-3"
+            >
+              <div>
+                <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                  Event Title *
+                </label>
+                <input
+                  required
+                  type="text"
+                  value={editingEvent.title}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, title: e.target.value })}
+                  className="w-full h-11 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                  Description
+                </label>
+                <input
+                  type="text"
+                  value={editingEvent.description || ''}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, description: e.target.value })}
+                  className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editingEvent.startDate}
+                    onChange={(e) => setEditingEvent({ ...editingEvent, startDate: e.target.value })}
+                    className="w-full h-10 px-2 bg-surface-container-low rounded-xl text-on-surface text-xs outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                    Time
+                  </label>
+                  <input
+                    type="time"
+                    value={editingEvent.startTime || '14:00'}
+                    onChange={(e) => setEditingEvent({ ...editingEvent, startTime: e.target.value })}
+                    className="w-full h-10 px-2 bg-surface-container-low rounded-xl text-on-surface text-xs outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">
+                  Type
+                </label>
+                <select
+                  value={editingEvent.type}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, type: e.target.value as CalendarEvent['type'] })}
+                  className="w-full h-10 px-2 bg-surface-container-low rounded-xl text-on-surface text-xs font-semibold outline-none"
+                >
+                  <option value="event">General Event</option>
+                  <option value="deadline">Academic Deadline</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingEvent(null)}
+                  className="flex-1 h-10 rounded-xl bg-surface-container-high text-on-surface text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 h-10 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm"
+                >
+                  Save Changes
                 </button>
               </div>
             </form>

@@ -140,15 +140,11 @@ export interface UserProfile {
   phone: string;
   college: string;
   course: string;
+  year?: string;
+  semester?: string;
   currentSemester: string;
   bio: string;
   avatarUrl: string;
-  academicProgress: {
-    semesterName: string;
-    attendancePercent: number;
-    currentDay: number;
-    totalDays: number;
-  };
 }
 
 export interface Balances {

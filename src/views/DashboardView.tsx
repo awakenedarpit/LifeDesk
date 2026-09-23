@@ -20,15 +20,26 @@ export const DashboardView: React.FC = () => {
     deleteTask,
     setActiveTab,
     openModal,
-    updateProfile,
   } = useApp();
 
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
-  const [editingAttendance, setEditingAttendance] = useState(false);
-  const [attInput, setAttInput] = useState(user.academicProgress.attendancePercent.toString());
-  const [dayInput, setDayInput] = useState(user.academicProgress.currentDay.toString());
 
-  // Priority tasks for today (non-completed prioritized first, max 4 on dashboard)
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+
+  // 1. Dashboard Metrics Calculations
+  // Today's tasks (due today)
+  const todayTasks = tasks.filter((t) => t.deadline && t.deadline.split('T')[0] === todayStr);
+  const pendingTasksCount = tasks.filter((t) => t.status !== 'Completed').length;
+
+  // Overdue tasks (past deadline and not completed)
+  const overdueTasks = tasks.filter((t) => {
+    if (t.status === 'Completed') return false;
+    return new Date(t.deadline).getTime() < now.getTime();
+  });
+  const overdueCount = overdueTasks.length;
+
+  // Priority tasks for today (non-completed prioritized first, max 4)
   const priorityTasks = [...tasks]
     .sort((a, b) => {
       if (a.status === 'Completed' && b.status !== 'Completed') return 1;
@@ -38,28 +49,18 @@ export const DashboardView: React.FC = () => {
     })
     .slice(0, 4);
 
-  const pendingTasksCount = tasks.filter((t) => t.status !== 'Completed').length;
-  const urgentCount = tasks.filter((t) => t.priority === 'Urgent' && t.status !== 'Completed').length;
-  const dueSoonCount = deadlines.filter((d) => d.status === 'Due Soon' || d.status === 'Upcoming').length;
+  // Upcoming Deadlines (dueDate >= now or status !== 'Completed')
+  const upcomingDeadlines = deadlines.filter((d) => {
+    return new Date(d.dueDate).getTime() >= now.getTime() - 86400000;
+  });
+  const dueSoonCount = upcomingDeadlines.length;
 
-  const topHackathon = hackathons[0] || {
-    name: 'Smart India Hackathon',
-    trackName: 'Hardware Acceleration Track',
-    currentStage: 'Pitch in 4d',
-    deliverable: 'Deliverable: Edge AI deployment demo',
-    bannerImage: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80',
-  };
+  // Upcoming / active hackathons
+  const activeHackathons = hackathons.filter((h) => h.status !== 'Completed');
+  const topHackathon = activeHackathons[0] || hackathons[0];
 
-  const handleSaveAttendance = () => {
-    updateProfile({
-      academicProgress: {
-        ...user.academicProgress,
-        attendancePercent: parseFloat(attInput) || 87,
-        currentDay: parseInt(dayInput) || 42,
-      },
-    });
-    setEditingAttendance(false);
-  };
+  // Recent transactions (top 4)
+  const recentTransactions = transactions.slice(0, 4);
 
   const formatRupee = (val: number) => `₹${val.toLocaleString('en-IN')}`;
 
@@ -71,6 +72,17 @@ export const DashboardView: React.FC = () => {
       return isToday ? `${timeStr} today` : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
     } catch {
       return 'Today';
+    }
+  };
+
+  const formatDeadlineDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      const monthAbbr = d.toLocaleDateString([], { month: 'short' }).toUpperCase();
+      const dayNum = d.getDate().toString();
+      return { topText: monthAbbr, btmText: dayNum };
+    } catch {
+      return { topText: 'DUE', btmText: 'SOON' };
     }
   };
 
@@ -135,60 +147,7 @@ export const DashboardView: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Focus Pulse Banner */}
-      <div 
-        onClick={() => setEditingAttendance(!editingAttendance)}
-        className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary to-primary-container p-3.5 sm:p-4 text-on-primary shadow-md cursor-pointer hover:opacity-95 transition-opacity"
-        title="Click to update attendance / term progress"
-      >
-        <div className="flex items-center justify-between gap-3 relative z-10">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="flex h-2.5 w-2.5 rounded-full bg-tertiary-fixed-dim animate-pulse flex-shrink-0" />
-            <div className="truncate">
-              <span className="font-label-xs text-[10px] uppercase tracking-wider text-on-primary-container opacity-90 block font-bold">
-                Academic Momentum
-              </span>
-              <span className="font-title-sm text-sm sm:text-base font-semibold truncate block">
-                {user.academicProgress.semesterName} • {user.academicProgress.attendancePercent}% Attendance Safe
-              </span>
-            </div>
-          </div>
-          <span className="font-label-xs text-xs bg-surface-container-lowest/20 backdrop-blur-md px-3 py-1 rounded-full text-on-primary whitespace-nowrap font-bold flex-shrink-0">
-            Day {user.academicProgress.currentDay}/{user.academicProgress.totalDays}
-          </span>
-        </div>
-
-        {/* Quick inline editor for academic momentum */}
-        {editingAttendance && (
-          <div 
-            className="mt-3 pt-3 border-t border-white/20 flex flex-wrap items-center gap-2 text-xs"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <span className="font-medium">Attendance %:</span>
-            <input
-              type="number"
-              value={attInput}
-              onChange={(e) => setAttInput(e.target.value)}
-              className="w-16 h-8 px-2 rounded-lg bg-white/20 text-white font-bold outline-none"
-            />
-            <span className="font-medium ml-2">Day:</span>
-            <input
-              type="number"
-              value={dayInput}
-              onChange={(e) => setDayInput(e.target.value)}
-              className="w-14 h-8 px-2 rounded-lg bg-white/20 text-white font-bold outline-none"
-            />
-            <button
-              onClick={handleSaveAttendance}
-              className="ml-auto px-3.5 py-1.5 bg-white text-primary rounded-lg font-bold hover:bg-slate-100 transition-colors shadow-xs"
-            >
-              Update
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* 3. Today's Overview Metric Cards (2x2 on Mobile, 4-col on Tablet/Desktop) */}
+      {/* 2. Today's Overview Metric Cards (Calculated: Tasks Today, Deadlines, Overdue & Hackathons, Available) */}
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
         {/* Tasks Card */}
         <div 
@@ -199,15 +158,19 @@ export const DashboardView: React.FC = () => {
             <span className="w-8 h-8 rounded-xl bg-surface-container-high text-primary flex items-center justify-center group-hover:scale-105 transition-transform">
               <span className="material-symbols-outlined text-[19px]">checklist</span>
             </span>
-            {urgentCount > 0 && (
+            {overdueCount > 0 ? (
               <span className="font-label-xs text-[10px] bg-error-container text-on-error-container px-2 py-0.5 rounded-full font-bold">
-                {urgentCount} Urgent
+                {overdueCount} Overdue
               </span>
-            )}
+            ) : todayTasks.length > 0 ? (
+              <span className="font-label-xs text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
+                {todayTasks.length} Today
+              </span>
+            ) : null}
           </div>
           <div>
             <span className="font-label-xs text-[10px] text-on-surface-variant block uppercase tracking-wide font-bold">
-              Tasks Today
+              Tasks
             </span>
             <div className="flex items-baseline gap-1 mt-0.5">
               <span className="text-xl sm:text-2xl text-on-surface font-extrabold leading-none">
@@ -240,7 +203,7 @@ export const DashboardView: React.FC = () => {
                 {dueSoonCount}
               </span>
               <span className="text-xs text-on-surface-variant truncate">
-                Lab &amp; Quiz
+                Active targets
               </span>
             </div>
           </div>
@@ -256,16 +219,16 @@ export const DashboardView: React.FC = () => {
               <span className="material-symbols-outlined text-[19px]">terminal</span>
             </span>
             <span className="font-label-xs text-[10px] bg-tertiary-fixed text-on-tertiary-fixed-variant px-2 py-0.5 rounded-full font-bold truncate max-w-[85px]">
-              SIH 2024
+              {topHackathon ? topHackathon.name.slice(0, 10) : 'Active'}
             </span>
           </div>
           <div>
             <span className="font-label-xs text-[10px] text-on-surface-variant block uppercase tracking-wide font-bold">
-              Hackathon
+              Hackathons
             </span>
             <div className="flex items-baseline gap-1 mt-0.5">
               <span className="text-base sm:text-lg text-on-surface font-bold truncate">
-                {topHackathon.currentStage}
+                {topHackathon ? topHackathon.currentStage : `${activeHackathons.length} Tracked`}
               </span>
             </div>
           </div>
@@ -297,7 +260,7 @@ export const DashboardView: React.FC = () => {
         </div>
       </section>
 
-      {/* 4. Treasury Quick Glance Card */}
+      {/* 4. Treasury Quick Glance Card (UPI + Cash Balances, Monthly Outflow, Card Spending) */}
       <section className="bg-surface-container-lowest rounded-2xl p-4 sm:p-5 shadow-sm border border-surface-container flex flex-col gap-3.5">
         <div className="flex items-center justify-between flex-wrap gap-2.5">
           <div 
@@ -309,7 +272,7 @@ export const DashboardView: React.FC = () => {
             </div>
             <div>
               <span className="font-label-xs text-[10px] text-on-surface-variant block uppercase tracking-wider font-bold">
-                Treasury Overview
+                Treasury Overview (Available Liquid)
               </span>
               <span className="font-headline-md text-xl sm:text-2xl text-on-surface font-extrabold leading-tight">
                 {formatRupee(availableMoney)}
@@ -345,7 +308,7 @@ export const DashboardView: React.FC = () => {
               {formatRupee(monthExpenses)}
             </span>
             <span className="text-[11px] text-on-surface-variant opacity-85">
-              UPI &amp; Cash outflow
+              Includes all category expenses
             </span>
           </div>
 
@@ -357,12 +320,12 @@ export const DashboardView: React.FC = () => {
               {formatRupee(cardSpending)}
             </span>
             <span className="text-[11px] text-secondary font-semibold">
-              Billed separately • No debit
+              Billed separately • No liquid debit
             </span>
           </div>
         </div>
 
-        {/* Quick Financial Action Triggers (Touch Friendly: min 40px height) */}
+        {/* Quick Financial Action Triggers */}
         <div className="grid grid-cols-3 gap-2 pt-1">
           <button
             className="h-10 px-2 bg-primary text-on-primary rounded-xl font-label-md text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 hover:bg-primary-container transition-all"
@@ -397,7 +360,7 @@ export const DashboardView: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-primary text-[22px]">task_alt</span>
             <h2 className="font-title-sm text-base text-on-surface font-bold">
-              Today's Priority Tasks
+              Priority Tasks
             </h2>
           </div>
           <div className="flex items-center gap-2">
@@ -416,112 +379,133 @@ export const DashboardView: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          {priorityTasks.map((task) => {
-            const isCompleted = task.status === 'Completed';
-            return (
-              <div
-                key={task.id}
-                className={`bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 shadow-sm border border-surface-container flex items-start gap-3 transition-all ${
-                  isCompleted ? 'opacity-65' : ''
-                }`}
-              >
-                {/* Complete checkbox (touch friendly: min 36px area) */}
-                <button
-                  aria-label="Mark task done"
-                  className={`mt-0.5 w-6 h-6 rounded-lg flex items-center justify-center transition-all flex-shrink-0 ${
-                    isCompleted
-                      ? 'bg-primary text-on-primary'
-                      : 'bg-surface-container-high text-transparent hover:text-primary'
+        {priorityTasks.length === 0 ? (
+          <div className="bg-surface-container-lowest rounded-2xl p-6 border border-surface-container text-center flex flex-col items-center justify-center gap-2">
+            <span className="material-symbols-outlined text-on-surface-variant text-[32px]">task_alt</span>
+            <p className="text-sm font-semibold text-on-surface">No priority tasks right now</p>
+            <button
+              onClick={() => openModal('task')}
+              className="text-xs text-primary font-bold hover:underline mt-1"
+            >
+              + Create your first task
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {priorityTasks.map((task) => {
+              const isCompleted = task.status === 'Completed';
+              return (
+                <div
+                  key={task.id}
+                  className={`bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 shadow-sm border border-surface-container flex items-start gap-3 transition-all ${
+                    isCompleted ? 'opacity-65' : ''
                   }`}
-                  onClick={() => toggleTaskStatus(task.id)}
-                  type="button"
                 >
-                  <span className="material-symbols-outlined text-[18px]">check</span>
-                </button>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span
-                      className={`font-label-xs text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                        task.priority === 'Urgent'
-                          ? 'bg-error-container text-on-error-container'
-                          : task.priority === 'High'
-                          ? 'bg-primary-fixed text-on-primary-fixed-variant'
-                          : 'bg-secondary-fixed text-on-secondary-fixed-variant'
-                      }`}
-                    >
-                      {task.priority}
-                    </span>
-                    <span className="font-label-xs text-[10px] bg-surface-container-high text-on-surface-variant px-2 py-0.5 rounded-full font-medium">
-                      {task.category}
-                    </span>
-                    <span className="font-label-xs text-[11px] text-on-surface-variant font-medium ml-auto flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[13px]">schedule</span>
-                      {renderTaskTime(task)}
-                    </span>
-                  </div>
-
-                  <p
-                    className={`font-body-md text-sm sm:text-base text-on-surface font-semibold mt-1 truncate ${
-                      isCompleted ? 'line-through text-on-surface-variant' : ''
-                    }`}
-                  >
-                    {task.name}
-                  </p>
-                  {task.description && (
-                    <span className="font-body-sm text-xs text-on-surface-variant block mt-0.5 truncate">
-                      {task.description}
-                    </span>
-                  )}
-                </div>
-
-                {/* Actions (Touch friendly: 36px target) */}
-                <div className="flex items-center gap-1 flex-shrink-0">
+                  {/* Complete checkbox */}
                   <button
-                    aria-label="Delete task"
-                    className="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-colors"
-                    onClick={() => setTaskToDelete(task.id)}
+                    aria-label="Mark task done"
+                    className={`mt-0.5 w-6 h-6 rounded-lg flex items-center justify-center transition-all flex-shrink-0 ${
+                      isCompleted
+                        ? 'bg-primary text-on-primary'
+                        : 'bg-surface-container-high text-transparent hover:text-primary'
+                    }`}
+                    onClick={() => toggleTaskStatus(task.id)}
                     type="button"
                   >
-                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                    <span className="material-symbols-outlined text-[18px]">check</span>
                   </button>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span
+                        className={`font-label-xs text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                          task.priority === 'Urgent'
+                            ? 'bg-error-container text-on-error-container'
+                            : task.priority === 'High'
+                            ? 'bg-primary-fixed text-on-primary-fixed-variant'
+                            : 'bg-secondary-fixed text-on-secondary-fixed-variant'
+                        }`}
+                      >
+                        {task.priority}
+                      </span>
+                      <span className="font-label-xs text-[10px] bg-surface-container-high text-on-surface-variant px-2 py-0.5 rounded-full font-medium">
+                        {task.category}
+                      </span>
+                      <span className="font-label-xs text-[11px] text-on-surface-variant font-medium ml-auto flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[13px]">schedule</span>
+                        {renderTaskTime(task)}
+                      </span>
+                    </div>
+
+                    <p
+                      className={`font-body-md text-sm sm:text-base text-on-surface font-semibold mt-1 truncate ${
+                        isCompleted ? 'line-through text-on-surface-variant' : ''
+                      }`}
+                    >
+                      {task.name}
+                    </p>
+                    {task.description && (
+                      <span className="font-body-sm text-xs text-on-surface-variant block mt-0.5 truncate">
+                        {task.description}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      aria-label="Delete task"
+                      className="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-colors"
+                      onClick={() => setTaskToDelete(task.id)}
+                      type="button"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
-      {/* 6. Visual Sprint Banner */}
-      <div 
-        onClick={() => setActiveTab('hackathons')}
-        className="relative overflow-hidden rounded-2xl bg-surface-container-lowest p-3.5 sm:p-4 shadow-sm border border-surface-container flex items-center gap-3 sm:gap-4 cursor-pointer hover:border-primary/40 transition-all group"
-      >
-        <img
-          className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover flex-shrink-0 ring-1 ring-surface-container group-hover:scale-105 transition-transform"
-          alt="High tech student workspace"
-          src={topHackathon.bannerImage}
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="font-label-xs text-xs text-primary font-bold uppercase">
-              {topHackathon.name}
-            </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
+      {/* 6. Active Hackathon Banner */}
+      {topHackathon && (
+        <div 
+          onClick={() => setActiveTab('hackathons')}
+          className="relative overflow-hidden rounded-2xl bg-surface-container-lowest p-3.5 sm:p-4 shadow-sm border border-surface-container flex items-center gap-3 sm:gap-4 cursor-pointer hover:border-primary/40 transition-all group"
+        >
+          {topHackathon.bannerImage ? (
+            <img
+              className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover flex-shrink-0 ring-1 ring-surface-container group-hover:scale-105 transition-transform"
+              alt="Hackathon banner"
+              src={topHackathon.bannerImage}
+            />
+          ) : (
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center justify-center flex-shrink-0 font-bold">
+              <span className="material-symbols-outlined text-[24px]">terminal</span>
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="font-label-xs text-xs text-primary font-bold uppercase">
+                {topHackathon.name}
+              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
+            </div>
+            <h3 className="font-title-sm text-sm sm:text-base text-on-surface font-bold truncate mt-0.5">
+              {topHackathon.trackName || topHackathon.currentStage}
+            </h3>
+            <p className="font-body-sm text-xs sm:text-sm text-on-surface-variant truncate">
+              {topHackathon.deliverable || `${topHackathon.milestones.length} Milestones scheduled`}
+            </p>
           </div>
-          <h3 className="font-title-sm text-sm sm:text-base text-on-surface font-bold truncate mt-0.5">
-            {topHackathon.trackName}
-          </h3>
-          <p className="font-body-sm text-xs sm:text-sm text-on-surface-variant truncate">
-            {topHackathon.deliverable}
-          </p>
+          <span className="material-symbols-outlined text-on-surface-variant text-[20px] hidden sm:block flex-shrink-0">
+            chevron_right
+          </span>
         </div>
-        <span className="material-symbols-outlined text-on-surface-variant text-[20px] hidden sm:block flex-shrink-0">
-          chevron_right
-        </span>
-      </div>
+      )}
 
       {/* 7. Upcoming Deadlines */}
       <section className="flex flex-col gap-2.5">
@@ -548,63 +532,61 @@ export const DashboardView: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 shadow-sm border border-surface-container flex flex-col gap-3">
-          {deadlines.slice(0, 3).map((dl, idx) => {
-            let tileBg = 'bg-surface-container-high text-primary';
-            let topText = 'DUE';
-            let btmText = 'SOON';
+        {deadlines.length === 0 ? (
+          <div className="bg-surface-container-lowest rounded-2xl p-6 border border-surface-container text-center flex flex-col items-center justify-center gap-2">
+            <span className="material-symbols-outlined text-on-surface-variant text-[32px]">event_available</span>
+            <p className="text-sm font-semibold text-on-surface">No deadlines pending</p>
+            <button
+              onClick={() => openModal('deadline')}
+              className="text-xs text-primary font-bold hover:underline"
+            >
+              + Add your next assignment or exam
+            </button>
+          </div>
+        ) : (
+          <div className="bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 shadow-sm border border-surface-container flex flex-col gap-3">
+            {deadlines.slice(0, 3).map((dl) => {
+              const { topText, btmText } = formatDeadlineDate(dl.dueDate);
 
-            if (idx === 0) {
-              topText = 'TOM';
-              btmText = '10AM';
-            } else if (idx === 1) {
-              tileBg = 'bg-surface-container-high text-on-surface';
-              topText = 'SEP';
-              btmText = '28';
-            } else if (idx === 2) {
-              tileBg = 'bg-secondary-fixed text-on-secondary-fixed';
-              topText = 'SEP';
-              btmText = '30';
-            }
-
-            return (
-              <div
-                key={dl.id}
-                className="flex items-center justify-between gap-3 pb-2.5 border-b border-surface-container last:border-b-0 last:pb-0"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-11 h-11 rounded-xl ${tileBg} flex flex-col items-center justify-center flex-shrink-0 font-bold`}>
-                    <span className="text-[10px] leading-none">{topText}</span>
-                    <span className="text-xs leading-none mt-1">{btmText}</span>
-                  </div>
-                  <div className="truncate">
-                    <span className="font-title-sm text-sm sm:text-base text-on-surface font-semibold block truncate">
-                      {dl.title}
-                    </span>
-                    <span className="font-body-sm text-xs text-on-surface-variant block truncate">
-                      {dl.description}
-                    </span>
-                  </div>
-                </div>
-
-                <span
-                  className={`font-label-xs text-[10px] px-2.5 py-1 rounded-full font-bold flex-shrink-0 ${
-                    dl.category === 'Exam'
-                      ? 'bg-error-container text-on-error-container'
-                      : dl.category === 'Project'
-                      ? 'bg-primary-fixed text-on-primary-fixed-variant'
-                      : 'bg-tertiary-fixed text-on-tertiary-fixed-variant'
-                  }`}
+              return (
+                <div
+                  key={dl.id}
+                  className="flex items-center justify-between gap-3 pb-2.5 border-b border-surface-container last:border-b-0 last:pb-0"
                 >
-                  {dl.category}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-xl bg-surface-container-high text-primary flex flex-col items-center justify-center flex-shrink-0 font-bold">
+                      <span className="text-[10px] leading-none">{topText}</span>
+                      <span className="text-xs leading-none mt-1">{btmText}</span>
+                    </div>
+                    <div className="truncate">
+                      <span className="font-title-sm text-sm sm:text-base text-on-surface font-semibold block truncate">
+                        {dl.title}
+                      </span>
+                      <span className="font-body-sm text-xs text-on-surface-variant block truncate">
+                        {dl.description || 'Academic Target'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`font-label-xs text-[10px] px-2.5 py-1 rounded-full font-bold flex-shrink-0 ${
+                      dl.category === 'Exam'
+                        ? 'bg-error-container text-on-error-container'
+                        : dl.category === 'Project'
+                        ? 'bg-primary-fixed text-on-primary-fixed-variant'
+                        : 'bg-tertiary-fixed text-on-tertiary-fixed-variant'
+                    }`}
+                  >
+                    {dl.category}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
-      {/* 8. Recent Financial Activity */}
+      {/* 8. Recent Financial Activity (Real Ledger) */}
       <section className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-2">
@@ -621,59 +603,72 @@ export const DashboardView: React.FC = () => {
           </button>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 shadow-sm border border-surface-container flex flex-col gap-3">
-          {transactions.slice(0, 4).map((tx) => {
-            let icon = 'receipt';
-            if (tx.category === 'Food') icon = 'restaurant';
-            else if (tx.category === 'Travel') icon = 'directions_bus';
-            else if (tx.category === 'Study Material') icon = 'menu_book';
-            else if (tx.category === 'Software') icon = 'code';
-            else if (tx.type === 'income') icon = 'savings';
-            else if (tx.type === 'transfer') icon = 'sync_alt';
+        {recentTransactions.length === 0 ? (
+          <div className="bg-surface-container-lowest rounded-2xl p-6 border border-surface-container text-center flex flex-col items-center justify-center gap-2">
+            <span className="material-symbols-outlined text-on-surface-variant text-[32px]">receipt</span>
+            <p className="text-sm font-semibold text-on-surface">No transactions logged yet</p>
+            <button
+              onClick={() => openModal('expense')}
+              className="text-xs text-primary font-bold hover:underline"
+            >
+              + Log an expense or calibrate balances
+            </button>
+          </div>
+        ) : (
+          <div className="bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 shadow-sm border border-surface-container flex flex-col gap-3">
+            {recentTransactions.map((tx) => {
+              let icon = 'receipt';
+              if (tx.category === 'Food') icon = 'restaurant';
+              else if (tx.category === 'Travel') icon = 'directions_bus';
+              else if (tx.category === 'Study Material') icon = 'menu_book';
+              else if (tx.category === 'Software') icon = 'code';
+              else if (tx.type === 'income') icon = 'savings';
+              else if (tx.type === 'transfer') icon = 'sync_alt';
 
-            const isIncome = tx.type === 'income';
-            const isZero = tx.amount === 0;
+              const isIncome = tx.type === 'income';
+              const isZero = tx.amount === 0;
 
-            return (
-              <div key={tx.id} className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-surface-container-high text-primary flex items-center justify-center flex-shrink-0">
-                    <span className="material-symbols-outlined text-[19px]">{icon}</span>
+              return (
+                <div key={tx.id} className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-surface-container-high text-primary flex items-center justify-center flex-shrink-0">
+                      <span className="material-symbols-outlined text-[19px]">{icon}</span>
+                    </div>
+                    <div className="truncate">
+                      <span className="font-body-md text-sm sm:text-base text-on-surface font-semibold block truncate">
+                        {tx.description}
+                      </span>
+                      <span className="font-label-xs text-xs text-on-surface-variant block truncate">
+                        {tx.category} • {tx.paymentSource || tx.destination || 'Transfer'} • {tx.time || tx.date}
+                      </span>
+                    </div>
                   </div>
-                  <div className="truncate">
-                    <span className="font-body-md text-sm sm:text-base text-on-surface font-semibold block truncate">
-                      {tx.description}
+
+                  <div className="text-right flex-shrink-0">
+                    <span
+                      className={`font-title-sm text-sm sm:text-base font-bold block ${
+                        isZero
+                          ? 'text-primary'
+                          : isIncome
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-on-surface'
+                      }`}
+                    >
+                      {isZero ? '₹0' : `${isIncome ? '+' : '-'}${formatRupee(tx.amount)}`}
                     </span>
-                    <span className="font-label-xs text-xs text-on-surface-variant block truncate">
-                      {tx.category} • {tx.paymentSource || tx.destination || 'Transfer'} • {tx.time || tx.date}
+                    <span
+                      className={`font-label-xs text-[10px] ${
+                        isZero ? 'text-primary font-bold' : 'text-on-surface-variant'
+                      }`}
+                    >
+                      {tx.status}
                     </span>
                   </div>
                 </div>
-
-                <div className="text-right flex-shrink-0">
-                  <span
-                    className={`font-title-sm text-sm sm:text-base font-bold block ${
-                      isZero
-                        ? 'text-primary'
-                        : isIncome
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-on-surface'
-                    }`}
-                  >
-                    {isZero ? '₹0' : `${isIncome ? '+' : '-'}${formatRupee(tx.amount)}`}
-                  </span>
-                  <span
-                    className={`font-label-xs text-[10px] ${
-                      isZero ? 'text-primary font-bold' : 'text-on-surface-variant'
-                    }`}
-                  >
-                    {tx.status}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* Delete Confirmation Modal for task */}

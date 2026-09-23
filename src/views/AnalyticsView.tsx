@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 
 export const AnalyticsView: React.FC = () => {
@@ -6,42 +6,88 @@ export const AnalyticsView: React.FC = () => {
 
   const formatRupee = (val: number) => `₹${val.toLocaleString('en-IN')}`;
 
-  // 1. Payment source calculations
-  const expenseTxs = transactions.filter((t) => t.type === 'expense');
-  const upiExpenses = expenseTxs.filter((t) => t.paymentSource === 'UPI').reduce((acc, t) => acc + t.amount, 0);
-  const cashExpenses = expenseTxs.filter((t) => t.paymentSource === 'Cash').reduce((acc, t) => acc + t.amount, 0);
-  const cardExpenses = expenseTxs.filter((t) => t.paymentSource === 'Card').reduce((acc, t) => acc + t.amount, 0);
+  // 1. Transaction filters
+  const expenseTxs = useMemo(() => transactions.filter((t) => t.type === 'expense'), [transactions]);
+  const incomeTxs = useMemo(() => transactions.filter((t) => t.type === 'income'), [transactions]);
+  const transferTxs = useMemo(() => transactions.filter((t) => t.type === 'transfer'), [transactions]);
+
+  // 2. Payment source spending calculations (real data)
+  const upiExpenses = useMemo(() => {
+    return expenseTxs
+      .filter((t) => (t.paymentSource || '').toUpperCase() === 'UPI')
+      .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+  }, [expenseTxs]);
+
+  const cashExpenses = useMemo(() => {
+    return expenseTxs
+      .filter((t) => (t.paymentSource || '').toUpperCase() === 'CASH')
+      .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+  }, [expenseTxs]);
+
+  const cardExpenses = useMemo(() => {
+    return expenseTxs
+      .filter((t) => (t.paymentSource || '').toUpperCase() === 'CARD')
+      .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+  }, [expenseTxs]);
+
+  const totalIncome = useMemo(() => {
+    return incomeTxs.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+  }, [incomeTxs]);
+
+  const totalTransfers = useMemo(() => {
+    return transferTxs.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+  }, [transferTxs]);
+
   const grandTotalSpending = upiExpenses + cashExpenses + cardExpenses || 1;
 
   const upiPercent = Math.round((upiExpenses / grandTotalSpending) * 100);
   const cashPercent = Math.round((cashExpenses / grandTotalSpending) * 100);
   const cardPercent = Math.max(0, 100 - upiPercent - cashPercent);
 
-  // 2. Category breakdown
-  const categoryMap: Record<string, number> = {};
-  expenseTxs.forEach((t) => {
-    categoryMap[t.category] = (categoryMap[t.category] || 0) + t.amount;
-  });
+  // 3. Category breakdown from real transactions
+  const categoryList = useMemo(() => {
+    const categoryMap: Record<string, number> = {};
+    expenseTxs.forEach((t) => {
+      const cat = t.category || 'Other';
+      categoryMap[cat] = (categoryMap[cat] || 0) + (Number(t.amount) || 0);
+    });
 
-  const categoryList = Object.entries(categoryMap)
-    .map(([cat, amt]) => ({
-      category: cat,
-      amount: amt,
-      percent: Math.round((amt / grandTotalSpending) * 100),
-    }))
-    .sort((a, b) => b.amount - a.amount);
+    return Object.entries(categoryMap)
+      .map(([cat, amt]) => ({
+        category: cat,
+        amount: amt,
+        percent: Math.round((amt / grandTotalSpending) * 100),
+      }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [expenseTxs, grandTotalSpending]);
 
-  // 3. Weekly spending rhythm (Mon to Sun)
-  const weekDays = [
-    { day: 'Mon', amount: 320 },
-    { day: 'Tue', amount: 650 },
-    { day: 'Wed', amount: 180 },
-    { day: 'Thu', amount: 480 },
-    { day: 'Fri', amount: 920 },
-    { day: 'Sat', amount: 1450 },
-    { day: 'Sun', amount: 600 },
-  ];
+  // 4. Dynamic Weekly spending rhythm from real transactions (Last 7 Days)
+  const weekDays = useMemo(() => {
+    const days: { day: string; fullDate: string; amount: number }[] = [];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const now = new Date();
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const dayName = dayNames[d.getDay()];
+
+      const dayAmount = expenseTxs
+        .filter((t) => t.date === dateStr)
+        .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+      days.push({ day: dayName, fullDate: dateStr, amount: dayAmount });
+    }
+    return days;
+  }, [expenseTxs]);
+
   const maxWeekly = Math.max(...weekDays.map((w) => w.amount), 1);
+
+  // 5. Average Daily Spend for current month
+  const now = new Date();
+  const daysInMonthElapsed = Math.max(1, now.getDate());
+  const avgDailySpend = Math.round(monthExpenses / daysInMonthElapsed);
 
   return (
     <div className="flex flex-col w-full gap-3 sm:gap-4 lg:gap-5">
@@ -51,21 +97,21 @@ export const AnalyticsView: React.FC = () => {
           Financial Analytics
         </h1>
         <p className="font-body-sm text-xs sm:text-sm text-on-surface-variant">
-          Monitor spending patterns, account velocity, and multi-source cashflow.
+          Live spending patterns, account velocity, and multi-source cashflow derived from your ledger.
         </p>
       </div>
 
-      {/* Top 3 KPI Cards */}
+      {/* Top KPI Cards (Real Data: Outflow, Liquid Runway, Average Daily Spend, Income & Transfers) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3.5">
         <div className="bg-surface-container-lowest rounded-2xl p-4 border border-surface-container shadow-sm flex flex-col justify-between">
           <span className="font-label-xs text-xs text-on-surface-variant uppercase font-bold tracking-wider">
             Total Monthly Outflow
           </span>
           <span className="font-currency-stat text-2xl text-on-surface font-extrabold mt-1">
-            {formatRupee(monthExpenses + cardSpending)}
+            {formatRupee(monthExpenses)}
           </span>
           <span className="text-xs text-on-surface-variant mt-0.5">
-            Liquid: {formatRupee(monthExpenses)} • Card: {formatRupee(cardSpending)}
+            Liquid: {formatRupee(Math.max(0, monthExpenses - cardSpending))} • Card: {formatRupee(cardSpending)}
           </span>
         </div>
 
@@ -86,15 +132,46 @@ export const AnalyticsView: React.FC = () => {
             Average Daily Spend
           </span>
           <span className="font-currency-stat text-2xl text-on-surface font-extrabold mt-1">
-            ₹245
+            {formatRupee(avgDailySpend)}
           </span>
-          <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5 flex items-center gap-1">
-            <span className="material-symbols-outlined text-[15px]">trending_down</span> 12% below semester target
+          <span className="text-xs text-on-surface-variant font-medium mt-0.5 flex items-center gap-1">
+            Day {daysInMonthElapsed} of current month
           </span>
         </div>
       </div>
 
-      {/* Weekly Spending Velocity Chart (Responsive SVG/Flex with zero horizontal overflow) */}
+      {/* Cashflow Summary: Income vs Transfers */}
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
+        <div className="bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 border border-surface-container shadow-sm flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
+            <span className="material-symbols-outlined text-[20px]">savings</span>
+          </div>
+          <div>
+            <span className="font-label-xs text-[10px] text-on-surface-variant uppercase font-bold tracking-wide block">
+              Total Inflow (Income)
+            </span>
+            <span className="text-base sm:text-lg text-emerald-600 dark:text-emerald-400 font-extrabold">
+              +{formatRupee(totalIncome)}
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 border border-surface-container shadow-sm flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+            <span className="material-symbols-outlined text-[20px]">sync_alt</span>
+          </div>
+          <div>
+            <span className="font-label-xs text-[10px] text-on-surface-variant uppercase font-bold tracking-wide block">
+              Internal Transfers
+            </span>
+            <span className="text-base sm:text-lg text-on-surface font-extrabold">
+              {formatRupee(totalTransfers)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Weekly Spending Velocity Chart (Dynamic Real Data from Transactions) */}
       <div className="bg-surface-container-lowest rounded-2xl border border-surface-container p-4 sm:p-5 shadow-sm flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
@@ -111,25 +188,27 @@ export const AnalyticsView: React.FC = () => {
         {/* Responsive Bar Container */}
         <div className="h-44 sm:h-52 w-full flex items-end justify-between gap-2 sm:gap-4 pt-6 pb-2 border-b border-surface-container">
           {weekDays.map((item, idx) => {
-            const heightPct = Math.round((item.amount / maxWeekly) * 85);
-            const isHighest = item.amount === maxWeekly;
+            const heightPct = Math.max(8, Math.round((item.amount / maxWeekly) * 85));
+            const isHighest = item.amount === maxWeekly && item.amount > 0;
 
             return (
               <div key={idx} className="flex-1 flex flex-col items-center justify-end h-full gap-1.5 group select-none">
                 {/* Amount tooltip */}
                 <span className="text-[10px] font-bold text-on-surface-variant opacity-80 group-hover:opacity-100 group-hover:text-primary transition-opacity font-mono">
-                  ₹{item.amount}
+                  {item.amount > 0 ? `₹${item.amount}` : '₹0'}
                 </span>
 
                 {/* Vertical Bar */}
                 <div className="w-full max-w-[36px] bg-surface-container-low rounded-t-xl overflow-hidden flex flex-col justify-end h-full">
                   <div
                     className={`w-full rounded-t-xl transition-all duration-300 group-hover:brightness-110 ${
-                      isHighest
+                      item.amount === 0
+                        ? 'bg-surface-container-high h-2'
+                        : isHighest
                         ? 'bg-primary'
                         : 'bg-primary/50'
                     }`}
-                    style={{ height: `${heightPct}%` }}
+                    style={{ height: item.amount === 0 ? '4px' : `${heightPct}%` }}
                   />
                 </div>
 
@@ -143,7 +222,7 @@ export const AnalyticsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Multi-Source Payment Method Distribution */}
+      {/* Multi-Source Payment Method Distribution (UPI, Cash, Card) */}
       <div className="bg-surface-container-lowest rounded-2xl border border-surface-container p-4 sm:p-5 shadow-sm flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
@@ -201,7 +280,7 @@ export const AnalyticsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Category Spending Breakdown List */}
+      {/* Category Spending Breakdown List (Derived from real transactions) */}
       <div className="bg-surface-container-lowest rounded-2xl border border-surface-container p-4 sm:p-5 shadow-sm flex flex-col gap-3.5">
         <h2 className="font-title-sm text-base text-on-surface font-bold">
           Category Outflow Breakdown

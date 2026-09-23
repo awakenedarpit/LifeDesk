@@ -27,15 +27,9 @@ export const INITIAL_PROFILE: UserProfile = {
   phone: '+91 98765 43210',
   college: 'National Institute of Technology, Delhi',
   course: 'B.Tech - Computer Science & Engineering',
-  currentSemester: 'Final Year Sem VII',
-  bio: 'Systems geek, competitive hackathon builder & Edge AI enthusiast. Surviving final year engineering.',
+  currentSemester: 'Sem VII',
+  bio: 'Systems geek, competitive hackathon builder & Edge AI enthusiast.',
   avatarUrl: 'https://lh3.googleusercontent.com/aida/AEtjO1UEgUlihmPnmz7-G4PHbl3pC1m1eEBx9V7IfsB6x7Bu1e1qkGgR4JntQeww1cNwkHE22XSFgWKmV-Swd1ODRC7FAnfZa_RQ7rxRwOKsPzqZJ6g71fU3J8hPEjcPb9n6MZvN2HZJtaP2fCtsYv4luUc3WnBPVwe0sn6AeMzTfbQQQAcP3hr6yjcM27a_4bIsS-8abxk3kWdA-bItHgPBzr0faPFmVagKKMjUnF7PNdrb-YqkGtQ06MQ2abHq2bAI-F-VKlth0God-A',
-  academicProgress: {
-    semesterName: 'Final Year Sem VII',
-    attendancePercent: 87,
-    currentDay: 42,
-    totalDays: 90,
-  },
 };
 
 export const INITIAL_BALANCES: Balances = {

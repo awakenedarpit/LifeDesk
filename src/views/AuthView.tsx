@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 
 export const AuthView: React.FC = () => {
-  const { login, signup, forgotPassword, resetPassword, showToast } = useApp();
+  const { login, signup, forgotPassword, resetPassword, showToast, isSupabaseConnected } = useApp();
 
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgot' | 'reset'>('login');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Login state
   const [email, setEmail] = useState('');
@@ -18,49 +19,73 @@ export const AuthView: React.FC = () => {
   const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       showToast('Please fill in email and password', 'error');
       return;
     }
-    const success = login(email, password);
-    if (!success) {
-      showToast('Invalid credentials. (Or click Quick Demo Login below)', 'error');
+    setIsSubmitting(true);
+    try {
+      await login(email, password);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleQuickDemo = () => {
-    login('aryan.sharma@campus.edu', 'student123');
+  const handleQuickDemo = async () => {
+    setIsSubmitting(true);
+    try {
+      await login('aryan.sharma@campus.edu', 'student123');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password || !name) {
       showToast('Please fill in all required fields', 'error');
       return;
     }
-    signup(email, password, name, college);
+    setIsSubmitting(true);
+    try {
+      await signup(email, password, name, college);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleForgot = (e: React.FormEvent) => {
+  const handleForgot = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
       showToast('Enter your registered email address', 'error');
       return;
     }
-    forgotPassword(email);
-    setAuthMode('reset');
+    setIsSubmitting(true);
+    try {
+      await forgotPassword(email);
+      setAuthMode('reset');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleReset = (e: React.FormEvent) => {
+  const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resetToken || !newPassword) {
       showToast('Please fill in reset token and new password', 'error');
       return;
     }
-    resetPassword(resetToken, newPassword);
-    setAuthMode('login');
+    setIsSubmitting(true);
+    try {
+      const ok = await resetPassword(resetToken, newPassword);
+      if (ok) {
+        setAuthMode('login');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -77,9 +102,16 @@ export const AuthView: React.FC = () => {
           <p className="font-body-sm text-body-sm text-on-surface-variant font-medium">
             Your Life, Organized.
           </p>
-          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-surface-container-high text-primary font-semibold mt-1">
-            Personal Student Command Center
-          </span>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-surface-container-high text-primary font-semibold">
+              Personal Student Command Center
+            </span>
+            {isSupabaseConnected && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Supabase
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Tab Switcher for Login / Signup */}
@@ -153,9 +185,11 @@ export const AuthView: React.FC = () => {
 
             <button
               type="submit"
-              className="h-11 mt-1 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-semibold hover:bg-primary-container shadow-sm active:scale-95 transition-all"
+              disabled={isSubmitting}
+              className="h-11 mt-1 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-semibold hover:bg-primary-container shadow-sm active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              Sign In to LifeDesk
+              {isSubmitting && <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />}
+              <span>{isSubmitting ? 'Signing In...' : 'Sign In to LifeDesk'}</span>
             </button>
 
             {/* Quick Demo Login One-Click */}
@@ -163,7 +197,8 @@ export const AuthView: React.FC = () => {
               <button
                 type="button"
                 onClick={handleQuickDemo}
-                className="h-10 px-3 bg-surface-container-high hover:bg-surface-container text-on-surface rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                disabled={isSubmitting}
+                className="h-10 px-3 bg-surface-container-high hover:bg-surface-container text-on-surface rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
               >
                 <span className="material-symbols-outlined text-[16px] text-primary">bolt</span>
                 <span>Quick Demo Login (Pre-loaded Aryan Sharma)</span>
@@ -233,9 +268,11 @@ export const AuthView: React.FC = () => {
 
             <button
               type="submit"
-              className="h-11 mt-1 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-semibold hover:bg-primary-container shadow-sm active:scale-95 transition-all"
+              disabled={isSubmitting}
+              className="h-11 mt-1 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-semibold hover:bg-primary-container shadow-sm active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              Create Account
+              {isSubmitting && <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />}
+              <span>{isSubmitting ? 'Creating Account...' : 'Create Account'}</span>
             </button>
           </form>
         )}
@@ -269,9 +306,11 @@ export const AuthView: React.FC = () => {
 
             <button
               type="submit"
-              className="h-11 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-semibold hover:bg-primary-container shadow-sm transition-all"
+              disabled={isSubmitting}
+              className="h-11 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-semibold hover:bg-primary-container shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              Send Reset Code
+              {isSubmitting && <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />}
+              <span>{isSubmitting ? 'Sending...' : 'Send Reset Instructions'}</span>
             </button>
 
             <button
@@ -292,20 +331,20 @@ export const AuthView: React.FC = () => {
                 Set New Password
               </h3>
               <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-                We've generated your password reset token. Enter it below to set your new password.
+                Enter your password reset confirmation token below.
               </p>
             </div>
 
             <div>
               <label className="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider block mb-1">
-                Reset Token (Check notification toast)
+                Reset Token (Check notification toast or email)
               </label>
               <input
                 required
                 type="text"
                 value={resetToken}
                 onChange={(e) => setResetToken(e.target.value)}
-                placeholder="e.g. DEMO-123456"
+                placeholder="e.g. RESET-123456"
                 className="w-full h-11 px-3.5 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none font-mono"
                 autoFocus
               />
@@ -327,9 +366,11 @@ export const AuthView: React.FC = () => {
 
             <button
               type="submit"
-              className="h-11 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-semibold hover:bg-primary-container shadow-sm transition-all"
+              disabled={isSubmitting}
+              className="h-11 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-semibold hover:bg-primary-container shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              Confirm Password Reset
+              {isSubmitting && <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />}
+              <span>{isSubmitting ? 'Updating...' : 'Confirm Password Reset'}</span>
             </button>
 
             <button

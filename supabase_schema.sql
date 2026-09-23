@@ -1,94 +1,6 @@
-/**
- * LifeDesk - Supabase Client & Database Architecture
- * 
- * Configured for Supabase Auth, PostgreSQL Database, Row Level Security (RLS),
- * and Realtime Synchronization.
- */
-
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-
-export interface SupabaseConfig {
-  url: string;
-  anonKey: string;
-  isConfigured: boolean;
-}
-
-// Check environment variables first, then localStorage for user-injected credentials
-export const getSupabaseConfig = (): SupabaseConfig => {
-  const envUrl = (import.meta.env.VITE_SUPABASE_URL as string) || '';
-  const envKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || '';
-
-  const storedUrl = typeof window !== 'undefined' ? localStorage.getItem('lifedesk_supabase_url') || '' : '';
-  const storedKey = typeof window !== 'undefined' ? localStorage.getItem('lifedesk_supabase_anon_key') || '' : '';
-
-  const url = (envUrl.trim() || storedUrl.trim());
-  const anonKey = (envKey.trim() || storedKey.trim());
-
-  const isConfigured = Boolean(
-    url &&
-    anonKey &&
-    url.startsWith('http') &&
-    anonKey.length > 10 &&
-    !url.includes('your-project-ref')
-  );
-
-  return {
-    url,
-    anonKey,
-    isConfigured,
-  };
-};
-
-export const saveManualSupabaseCredentials = (url: string, anonKey: string): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('lifedesk_supabase_url', url.trim());
-    localStorage.setItem('lifedesk_supabase_anon_key', anonKey.trim());
-  }
-};
-
-export const clearManualSupabaseCredentials = (): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('lifedesk_supabase_url');
-    localStorage.removeItem('lifedesk_supabase_anon_key');
-  }
-};
-
-let clientInstance: SupabaseClient | null = null;
-let lastUrl = '';
-let lastKey = '';
-
-export const getSupabaseClient = (): SupabaseClient | null => {
-  const config = getSupabaseConfig();
-  if (!config.isConfigured) {
-    return null;
-  }
-
-  if (!clientInstance || lastUrl !== config.url || lastKey !== config.anonKey) {
-    clientInstance = createClient(config.url, config.anonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
-      realtime: {
-        params: {
-          eventsPerSecond: 10,
-        },
-      },
-    });
-    lastUrl = config.url;
-    lastKey = config.anonKey;
-  }
-
-  return clientInstance;
-};
-
-/**
- * Complete Supabase SQL Schema for LifeDesk
- * Ready to run directly in Supabase SQL Editor:
- */
-export const SUPABASE_SQL_SCHEMA = `-- ========================================================
+-- ========================================================
 -- LIFEDESK: Student Command Center - Production PostgreSQL Schema
+-- Run this script in your Supabase Project -> SQL Editor -> New Query -> Run
 -- ========================================================
 
 -- Enable extensions
@@ -191,7 +103,7 @@ CREATE TABLE IF NOT EXISTS public.transactions (
 );
 
 -- ========================================================
--- Row Level Security (RLS) - Isolation per auth.uid()
+-- Row Level Security (RLS) - Complete User Data Isolation
 -- ========================================================
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
@@ -250,7 +162,7 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'year', '4th Year'),
     COALESCE(NEW.raw_user_meta_data->>'semester', 'Sem VII'),
     COALESCE(NEW.raw_user_meta_data->>'bio', 'Systems engineer & hackathon builder'),
-    COALESCE(NEW.raw_user_meta_data->>'avatar_url', 'https://lh3.googleusercontent.com/aida/AEtjO1UEgUlihmPnmz7-G4PHbl3pC1m1eEBx9V7IfsB6x7Bu1e1qkGgR4JntQeww1cNwkHE22XSFgWKmV-Swd1ODRC7FAnfZa_RQ7rxRwOKsPzqZJ6g71fU3J8hPEjcPb9n6MZvN2HZJtaP2fCtsYv4luUc3WnBPVwe0sn6AeMzTfbQQQAcP3hr6yjcM27a_4bIsS-8abxk3kWdA-bItHgPBzr0faPFmVagKKMjUnF7PNdrb-YqkGtQ06MQ2abHq2bAI-F-VKlth0God-A')
+    COALESCE(NEW.raw_user_meta_data->>'avatar_url', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80')
   )
   ON CONFLICT (id) DO UPDATE
   SET email = EXCLUDED.email,
@@ -275,4 +187,3 @@ BEGIN
 END $$;
 
 ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles, public.tasks, public.events, public.hackathons, public.hackathon_milestones, public.transactions;
-`;
