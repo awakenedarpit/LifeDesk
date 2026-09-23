@@ -147,6 +147,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Auth & Profile state
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    const config = getSupabaseConfig();
+    // With Supabase enabled, authentication must come from a real session.
+    if (config.isConfigured) return false;
     return localStorage.getItem('lifedesk_auth') !== 'unauthenticated';
   });
   const [user, setUser] = useState<UserProfile>(() => storage.getProfile());
@@ -290,18 +293,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return;
     }
 
+    const isRecoveryRedirect = () => {
+      const hash = window.location.hash.toLowerCase();
+      const search = window.location.search.toLowerCase();
+      return hash.includes('type=recovery') || search.includes('type=recovery');
+    };
+
     client.auth.getSession().then(({ data: { session } }) => {
+      if (isRecoveryRedirect()) {
+        setIsAuthenticated(false);
+        localStorage.setItem('lifedesk_auth', 'unauthenticated');
+        setIsLoading(false);
+        return;
+      }
       if (session?.user) {
         setIsAuthenticated(true);
         localStorage.setItem('lifedesk_auth', 'authenticated');
         loadUserData(session.user.id);
       } else {
+        setIsAuthenticated(false);
+        localStorage.setItem('lifedesk_auth', 'unauthenticated');
         setIsLoading(false);
       }
     });
 
     const { data: { subscription } } = client.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsAuthenticated(false);
+        localStorage.setItem('lifedesk_auth', 'unauthenticated');
+        setIsLoading(false);
+      } else if (event === 'SIGNED_IN' && session?.user) {
         setIsAuthenticated(true);
         localStorage.setItem('lifedesk_auth', 'authenticated');
         loadUserData(session.user.id);
@@ -553,6 +574,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTasks(nextTasks);
     storage.setTasks(nextTasks);
 
+    const linkedTask = nextTasks.find((t) => t.id === id);
+    if (linkedTask) {
+      const [datePart, timePart] = (linkedTask.deadline || '').split('T');
+      const nextEvents = events.map((event) =>
+        event.referenceId === id
+          ? {
+              ...event,
+              title: linkedTask.name,
+              description: linkedTask.description,
+              category: linkedTask.category,
+              startDate: datePart || event.startDate,
+              startTime: timePart ? timePart.substring(0, 5) : event.startTime,
+            }
+          : event
+      );
+      setEvents(nextEvents);
+      storage.setEvents(nextEvents);
+    }
+
     const client = getSupabaseClient();
     if (client) {
       try {
@@ -642,6 +682,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const next = deadlines.map((d) => (d.id === id ? { ...d, ...updates } : d));
     setDeadlines(next);
     storage.setDeadlines(next);
+
+    const updatedDeadline = next.find((d) => d.id === id);
+    if (updatedDeadline) {
+      const [datePart, timePart] = (updatedDeadline.dueDate || '').split('T');
+      const nextEvents = events.map((event) =>
+        event.referenceId === id
+          ? {
+              ...event,
+              title: updatedDeadline.title,
+              description: updatedDeadline.description,
+              category: updatedDeadline.category,
+              startDate: datePart || event.startDate,
+              startTime: timePart ? timePart.substring(0, 5) : event.startTime,
+            }
+          : event
+      );
+      setEvents(nextEvents);
+      storage.setEvents(nextEvents);
+    }
 
     const client = getSupabaseClient();
     if (client) {
