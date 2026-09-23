@@ -47,20 +47,78 @@ export const CalendarView: React.FC = () => {
     setSelectedDateStr(today.toISOString().split('T')[0]);
   };
 
-  // Compile all calendar items (events + deadlines + tasks)
-  const allCalendarItems: (CalendarEvent & { color: string })[] = [
-    ...events.map((e) => ({
-      ...e,
-      color:
-        e.type === 'deadline'
-          ? 'bg-error-container text-on-error-container border-error-container'
-          : e.type === 'task'
-          ? 'bg-primary-fixed text-on-primary-fixed-variant border-primary-fixed'
-          : e.type === 'hackathon'
-          ? 'bg-tertiary-fixed text-on-tertiary-fixed-variant border-tertiary-fixed'
-          : 'bg-surface-container-high text-on-surface border-surface-container',
-    })),
+  // Compile a single calendar source from persisted events + tasks + deadlines + hackathon milestones.
+  // Tasks/deadlines are intentionally derived from their own source records so calendar
+  // entries remain visible after a refresh and always follow date edits.
+  const eventReferenceIds = new Set(events.map((e) => e.referenceId).filter(Boolean));
+
+  const taskCalendarItems: CalendarEvent[] = tasks
+    .filter((task) => !eventReferenceIds.has(task.id))
+    .map((task) => {
+      const [datePart, timePart] = (task.deadline || '').split('T');
+      return {
+        id: `calendar-task-${task.id}`,
+        title: task.name,
+        description: task.description,
+        category: task.category,
+        startDate: datePart || '',
+        startTime: timePart ? timePart.substring(0, 5) : undefined,
+        type: 'task',
+        referenceId: task.id,
+      };
+    })
+    .filter((item) => Boolean(item.startDate));
+
+  const deadlineCalendarItems: CalendarEvent[] = deadlines
+    .filter((deadline) => !eventReferenceIds.has(deadline.id))
+    .map((deadline) => {
+      const [datePart, timePart] = (deadline.dueDate || '').split('T');
+      return {
+        id: `calendar-deadline-${deadline.id}`,
+        title: deadline.title,
+        description: deadline.description,
+        category: deadline.category,
+        startDate: datePart || '',
+        startTime: timePart ? timePart.substring(0, 5) : undefined,
+        type: 'deadline',
+        referenceId: deadline.id,
+      };
+    })
+    .filter((item) => Boolean(item.startDate));
+
+  const milestoneCalendarItems: CalendarEvent[] = hackathons.flatMap((hackathon) =>
+    (hackathon.milestones || [])
+      .filter((milestone) => Boolean(milestone.date))
+      .map((milestone) => ({
+        id: `calendar-milestone-${hackathon.id}-${milestone.id}`,
+        title: milestone.title || milestone.stage,
+        description: milestone.notes || `${hackathon.name} • ${milestone.stage}`,
+        category: 'Hackathon',
+        startDate: milestone.date.split('T')[0],
+        startTime: milestone.time || undefined,
+        type: 'hackathon' as const,
+        referenceId: milestone.id,
+      }))
+  );
+
+  const calendarSourceItems = [
+    ...events,
+    ...taskCalendarItems,
+    ...deadlineCalendarItems,
+    ...milestoneCalendarItems,
   ];
+
+  const allCalendarItems: (CalendarEvent & { color: string })[] = calendarSourceItems.map((e) => ({
+    ...e,
+    color:
+      e.type === 'deadline'
+        ? 'bg-error-container text-on-error-container border-error-container'
+        : e.type === 'task'
+        ? 'bg-primary-fixed text-on-primary-fixed-variant border-primary-fixed'
+        : e.type === 'hackathon'
+        ? 'bg-tertiary-fixed text-on-tertiary-fixed-variant border-tertiary-fixed'
+        : 'bg-surface-container-high text-on-surface border-surface-container',
+  }));
 
   // Month grid helpers
   const year = currentDate.getFullYear();
