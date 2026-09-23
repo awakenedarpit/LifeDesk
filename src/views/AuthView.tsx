@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 
 export const AuthView: React.FC = () => {
@@ -20,6 +20,14 @@ export const AuthView: React.FC = () => {
   // Reset state
   const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
+
+  useEffect(() => {
+    const hash = window.location.hash.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    if (hash.includes('type=recovery') || search.includes('type=recovery')) {
+      setAuthMode('reset');
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +66,6 @@ export const AuthView: React.FC = () => {
     setIsSubmitting(true);
     try {
       await forgotPassword(email);
-      setAuthMode('reset');
     } finally {
       setIsSubmitting(false);
     }
@@ -66,8 +73,8 @@ export const AuthView: React.FC = () => {
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resetToken || !newPassword) {
-      showToast('Please fill in reset token and new password', 'error');
+    if (!newPassword) {
+      showToast('Please enter a new password', 'error');
       return;
     }
     setIsSubmitting(true);
@@ -338,21 +345,6 @@ export const AuthView: React.FC = () => {
 
             <div>
               <label className="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider block mb-1">
-                Reset Token (Check notification toast or email)
-              </label>
-              <input
-                required
-                type="text"
-                value={resetToken}
-                onChange={(e) => setResetToken(e.target.value)}
-                placeholder="e.g. RESET-123456"
-                className="w-full h-11 px-3.5 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none font-mono"
-                autoFocus
-              />
-            </div>
-
-            <div>
-              <label className="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider block mb-1">
                 New Password
               </label>
               <div className="relative">
@@ -381,7 +373,7 @@ export const AuthView: React.FC = () => {
               className="h-11 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-semibold hover:bg-primary-container shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isSubmitting && <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />}
-              <span>{isSubmitting ? 'Updating...' : 'Confirm Password Reset'}</span>
+              <span>{isSubmitting ? 'Updating...' : 'Update Password'}</span>
             </button>
 
             <button
