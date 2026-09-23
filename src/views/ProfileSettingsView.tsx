@@ -1,12 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
-import {
-  SUPABASE_SQL_SCHEMA,
-  getSupabaseConfig,
-  saveManualSupabaseCredentials,
-  clearManualSupabaseCredentials,
-} from '../services/supabaseClient';
 
 export const ProfileSettingsView: React.FC = () => {
   const {
@@ -21,8 +15,6 @@ export const ProfileSettingsView: React.FC = () => {
   } = useApp();
 
   const [isEditing, setIsEditing] = useState(false);
-  const [showSqlSchema, setShowSqlSchema] = useState(false);
-  const [showConfigPanel, setShowConfigPanel] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
@@ -57,11 +49,6 @@ export const ProfileSettingsView: React.FC = () => {
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [isChangingPass, setIsChangingPass] = useState(false);
-
-  // Manual Supabase Config State
-  const initialConfig = getSupabaseConfig();
-  const [customUrl, setCustomUrl] = useState(initialConfig.url);
-  const [customKey, setCustomKey] = useState(initialConfig.anonKey);
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,32 +104,6 @@ export const ProfileSettingsView: React.FC = () => {
     } finally {
       setIsChangingPass(false);
     }
-  };
-
-  const handleSaveConfig = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customUrl.trim() || !customKey.trim()) {
-      showToast('Please enter both Supabase Project URL and Anon Key', 'error');
-      return;
-    }
-    saveManualSupabaseCredentials(customUrl, customKey);
-    showToast('Supabase credentials saved! Reloading application...', 'success');
-    setTimeout(() => {
-      window.location.reload();
-    }, 800);
-  };
-
-  const handleResetConfig = () => {
-    clearManualSupabaseCredentials();
-    showToast('Manual credentials cleared. Reloading...', 'info');
-    setTimeout(() => {
-      window.location.reload();
-    }, 800);
-  };
-
-  const handleCopySchema = () => {
-    navigator.clipboard.writeText(SUPABASE_SQL_SCHEMA);
-    showToast('Supabase SQL Schema copied to clipboard!', 'success');
   };
 
   return (
@@ -426,127 +387,41 @@ export const ProfileSettingsView: React.FC = () => {
         )}
       </div>
 
-      {/* Supabase Architecture & Database Configuration */}
+      {/* Cloud Sync */}
       <div className="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container shadow-sm flex flex-col gap-3">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2.5">
-            <span className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[20px]">database</span>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center flex-shrink-0">
+              <span className="material-symbols-outlined text-[20px]">cloud_done</span>
             </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-title-sm text-title-sm text-on-surface font-bold">
-                  Supabase Cloud Backend
-                </h3>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-title-sm text-title-sm text-on-surface font-bold">Cloud Sync</h3>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 ${
                   isSupabaseConnected
                     ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                     : 'bg-surface-container-high text-on-surface-variant'
                 }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-on-surface-variant'}`} />
-                  {isSupabaseConnected ? 'Connected & Active' : 'Offline / Local Ready'}
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    isSupabaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-on-surface-variant'
+                  }`} />
+                  {isSupabaseConnected ? 'Connected & Active' : 'Offline'}
                 </span>
               </div>
               <p className="text-xs text-on-surface-variant">
-                Full-fidelity PostgreSQL DDL with RLS policies, Auth, and Realtime sync.
+                Keep your LifeDesk data synced across your devices.
               </p>
             </div>
           </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => refreshData()}
-              className="px-3 py-1.5 bg-surface-container-low hover:bg-surface-container rounded-lg text-xs font-semibold text-on-surface border border-surface-container transition-colors flex items-center gap-1"
-              title="Sync latest records from Supabase"
-            >
-              <span className="material-symbols-outlined text-[15px]">sync</span>
-              <span>Sync</span>
-            </button>
-            <button
-              onClick={() => setShowConfigPanel(!showConfigPanel)}
-              className="px-3 py-1.5 bg-surface-container-low hover:bg-surface-container rounded-lg text-xs font-semibold text-primary border border-surface-container transition-colors"
-            >
-              {showConfigPanel ? 'Close API Config' : 'Configure API'}
-            </button>
-            <button
-              onClick={() => setShowSqlSchema(!showSqlSchema)}
-              className="px-3 py-1.5 bg-surface-container-low hover:bg-surface-container rounded-lg text-xs font-semibold text-primary border border-surface-container transition-colors"
-            >
-              {showSqlSchema ? 'Hide Schema' : 'View SQL DDL'}
-            </button>
-          </div>
+          <button
+            onClick={() => refreshData()}
+            className="px-3 py-1.5 bg-surface-container-low hover:bg-surface-container rounded-lg text-xs font-semibold text-on-surface border border-surface-container transition-colors flex items-center gap-1"
+            title="Sync latest records from cloud"
+          >
+            <span className="material-symbols-outlined text-[15px]">sync</span>
+            <span>Sync Now</span>
+          </button>
         </div>
-
-        {/* API Credentials Panel */}
-        {showConfigPanel && (
-          <form onSubmit={handleSaveConfig} className="flex flex-col gap-3 p-3.5 bg-surface-container-low rounded-xl border border-surface-container mt-1">
-            <span className="text-xs font-bold text-on-surface">Supabase Project API Credentials</span>
-            <div className="flex flex-col gap-2">
-              <div>
-                <label className="font-label-xs text-[10px] text-on-surface-variant uppercase block mb-1">
-                  Project URL (VITE_SUPABASE_URL)
-                </label>
-                <input
-                  type="url"
-                  value={customUrl}
-                  onChange={(e) => setCustomUrl(e.target.value)}
-                  placeholder="https://xyzprojectref.supabase.co"
-                  className="w-full h-9 px-3 bg-surface-container-lowest rounded-lg text-xs text-on-surface font-mono outline-none border border-surface-container"
-                />
-              </div>
-              <div>
-                <label className="font-label-xs text-[10px] text-on-surface-variant uppercase block mb-1">
-                  Anon Public Key (VITE_SUPABASE_ANON_KEY)
-                </label>
-                <input
-                  type="password"
-                  value={customKey}
-                  onChange={(e) => setCustomKey(e.target.value)}
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  className="w-full h-9 px-3 bg-surface-container-lowest rounded-lg text-xs text-on-surface font-mono outline-none border border-surface-container"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end pt-1">
-              {initialConfig.isConfigured && (
-                <button
-                  type="button"
-                  onClick={handleResetConfig}
-                  className="h-8 px-3 rounded-lg bg-surface-container-high text-xs text-on-surface font-semibold"
-                >
-                  Clear Manual Key
-                </button>
-              )}
-              <button
-                type="submit"
-                className="h-8 px-4 rounded-lg bg-primary text-on-primary text-xs font-semibold shadow-xs"
-              >
-                Save &amp; Connect
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* SQL Schema Preview */}
-        {showSqlSchema && (
-          <div className="flex flex-col gap-2 mt-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-on-surface-variant font-mono">
-                lifedesk_schema.sql (6 tables + RLS policies + Triggers)
-              </span>
-              <button
-                onClick={handleCopySchema}
-                className="px-3 py-1 bg-primary text-on-primary rounded-md text-xs font-semibold flex items-center gap-1 shadow-xs"
-              >
-                <span className="material-symbols-outlined text-[14px]">content_copy</span>
-                <span>Copy SQL</span>
-              </button>
-            </div>
-            <pre className="p-3 bg-surface-container-low text-on-surface rounded-xl text-xs font-mono overflow-x-auto max-h-60 border border-surface-container">
-              {SUPABASE_SQL_SCHEMA}
-            </pre>
-          </div>
-        )}
       </div>
 
       {/* Account Security & Actions */}
