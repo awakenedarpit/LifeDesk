@@ -13,32 +13,7 @@ export default defineConfig(() => {
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['lifedesk-icon.svg', 'lifedesk-pwa-192.png', 'lifedesk-pwa-512.png'],
-        manifest: {
-          id: '/LifeDesk/',
-          name: 'LifeDesk - Student Command Center',
-          short_name: 'LifeDesk',
-          description: 'Your Life, Organized. Personal student command center.',
-          theme_color: '#f8f7f4',
-          background_color: '#f8f7f4',
-          display: 'standalone',
-          orientation: 'portrait-primary',
-          start_url: '/LifeDesk/',
-          scope: '/LifeDesk/',
-          icons: [
-            {
-              src: '/LifeDesk/lifedesk-pwa-192.png',
-              sizes: '192x192',
-              type: 'image/png',
-              purpose: 'any maskable',
-            },
-            {
-              src: '/LifeDesk/lifedesk-pwa-512.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'any maskable',
-            },
-          ],
-        },
+        manifest: false,
         workbox: {
           navigateFallback: '/LifeDesk/index.html',
           globPatterns: ['**/*.{js,css,html,svg,ico,png,webp}'],
