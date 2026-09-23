@@ -120,7 +120,9 @@ export const supabaseService = {
       phone: data.phone || '',
       college: data.college || '',
       course: data.course || '',
-      currentSemester: data.semester ? `${data.year || ''} ${data.semester}`.trim() : (data.year || 'Sem VII'),
+      year: data.year || '1st Year',
+      semester: data.semester || 'Sem 1',
+      currentSemester: data.semester ? `${data.year || ''} ${data.semester}`.trim() : (data.year || '1st Year'),
       bio: data.bio || '',
       avatarUrl: data.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
     };
@@ -140,6 +142,8 @@ export const supabaseService = {
     if (profile.phone !== undefined) row.phone = profile.phone;
     if (profile.college !== undefined) row.college = profile.college;
     if (profile.course !== undefined) row.course = profile.course;
+    if (profile.year !== undefined) row.year = profile.year;
+    if (profile.semester !== undefined) row.semester = profile.semester;
     if (profile.bio !== undefined) row.bio = profile.bio;
     if (profile.avatarUrl !== undefined) row.avatar_url = profile.avatarUrl;
 
