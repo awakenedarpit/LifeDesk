@@ -32,9 +32,9 @@ export const supabaseService = {
         data: {
           full_name: name,
           college: college || 'National Institute of Technology',
-          course: 'B.Tech - Computer Science & Engineering',
-          year: '4th Year',
-          semester: 'Sem VII',
+          course: 'B.Tech - Artificial Intelligence and Machine Learning',
+          year: '1st Year',
+          semester: 'Sem 1',
         },
       },
     });
