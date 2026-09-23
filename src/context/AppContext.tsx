@@ -335,88 +335,80 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Auth functions
   const login = async (email: string, pass: string): Promise<boolean> => {
     const client = getSupabaseClient();
-    if (client) {
-      try {
-        setIsLoading(true);
-        let authUser;
-        try {
-          const res = await supabaseService.signIn(email, pass);
-          authUser = res.user;
-        } catch (signInErr) {
-          if (email === 'aryan.sharma@campus.edu') {
-            try {
-              await supabaseService.signUp(email, pass, 'Aryan Sharma', 'National Institute of Technology');
-              const res = await supabaseService.signIn(email, pass);
-              authUser = res.user;
-            } catch {
-              throw signInErr;
-            }
-          } else {
-            throw signInErr;
-          }
-        }
-
-        if (authUser) {
-          setIsAuthenticated(true);
-          localStorage.setItem('lifedesk_auth', 'authenticated');
-          await loadUserData(authUser.id);
-          showToast(`Welcome back, ${authUser.email?.split('@')[0]}!`, 'success');
-          return true;
-        }
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Invalid credentials';
-        showToast(message, 'error');
-        setIsLoading(false);
-        return false;
-      }
+    if (!client) {
+      showToast('Authentication is unavailable because Supabase is not configured.', 'error');
+      return false;
     }
 
-    // Local / Offline demo fallback
-    setIsAuthenticated(true);
-    localStorage.setItem('lifedesk_auth', 'authenticated');
-    setUser((prev) => ({ ...prev, email }));
-    showToast(`Signed in as ${email}`, 'success');
-    return true;
+    try {
+      setIsLoading(true);
+      const { user: authUser, session } = await supabaseService.signIn(email.trim(), pass);
+
+      if (!authUser || !session) {
+        throw new Error('Sign in did not create a valid session. Please try again.');
+      }
+
+      setIsAuthenticated(true);
+      localStorage.setItem('lifedesk_auth', 'authenticated');
+      await loadUserData(authUser.id);
+      showToast(`Welcome back, ${authUser.email?.split('@')[0] || 'Student'}!`, 'success');
+      return true;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Invalid email or password';
+      const normalized = message.toLowerCase();
+      if (normalized.includes('email not confirmed')) {
+        showToast('Please confirm your email address before signing in.', 'error');
+      } else if (normalized.includes('invalid login credentials')) {
+        showToast('Invalid email or password. If you forgot it, use Forgot Password.', 'error');
+      } else {
+        showToast(message, 'error');
+      }
+      setIsLoading(false);
+      return false;
+    }
   };
 
   const signup = async (email: string, pass: string, name: string, college?: string): Promise<boolean> => {
     const client = getSupabaseClient();
-    if (client) {
-      try {
-        setIsLoading(true);
-        const { user: newUser } = await supabaseService.signUp(email, pass, name, college);
-        if (newUser) {
-          setIsAuthenticated(true);
-          localStorage.setItem('lifedesk_auth', 'authenticated');
-          const newProfile: UserProfile = {
-            ...INITIAL_PROFILE,
-            id: newUser.id,
-            fullName: name,
-            email,
-            college: college || INITIAL_PROFILE.college,
-          };
-          setUser(newProfile);
-          storage.setProfile(newProfile);
-          showToast(`Welcome to LifeDesk, ${name}! Account created.`, 'success');
-          await loadUserData(newUser.id);
-          return true;
-        }
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Sign up failed';
-        showToast(message, 'error');
+    if (!client) {
+      showToast('Authentication is unavailable because Supabase is not configured.', 'error');
+      return false;
+    }
+
+    try {
+      setIsLoading(true);
+      const { user: newUser, session } = await supabaseService.signUp(email.trim(), pass, name, college);
+
+      if (!newUser) {
+        throw new Error('Account could not be created. Please try again.');
+      }
+
+      if (!session) {
+        showToast('Account created. Please confirm your email, then sign in.', 'info');
         setIsLoading(false);
         return false;
       }
-    }
 
-    // Local fallback
-    setIsAuthenticated(true);
-    localStorage.setItem('lifedesk_auth', 'authenticated');
-    const updated: UserProfile = { ...user, fullName: name, email, college: college || user.college };
-    setUser(updated);
-    storage.setProfile(updated);
-    showToast(`Welcome to LifeDesk, ${name}!`, 'success');
-    return true;
+      setIsAuthenticated(true);
+      localStorage.setItem('lifedesk_auth', 'authenticated');
+      const newProfile: UserProfile = {
+        ...INITIAL_PROFILE,
+        id: newUser.id,
+        fullName: name,
+        email: email.trim(),
+        college: college || INITIAL_PROFILE.college,
+      };
+      setUser(newProfile);
+      storage.setProfile(newProfile);
+      await loadUserData(newUser.id);
+      showToast(`Welcome to LifeDesk, ${name}!`, 'success');
+      return true;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Sign up failed';
+      showToast(message, 'error');
+      setIsLoading(false);
+      return false;
+    }
   };
 
   const logout = async () => {
