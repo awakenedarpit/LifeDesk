@@ -2,11 +2,38 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
+import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
   return {
     base: '/LifeDesk/',
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['lifedesk-icon.svg'],
+        manifest: {
+          name: 'LifeDesk - Student Command Center',
+          short_name: 'LifeDesk',
+          description: 'Your Life, Organized. Personal student command center.',
+          theme_color: '#f8f7f4',
+          background_color: '#f8f7f4',
+          display: 'standalone',
+          orientation: 'portrait-primary',
+          start_url: '/LifeDesk/',
+          scope: '/LifeDesk/',
+          icons: [
+            {src: '/LifeDesk/lifedesk-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable'},
+          ],
+        },
+        workbox: {
+          navigateFallback: '/LifeDesk/index.html',
+          globPatterns: ['**/*.{js,css,html,svg,ico,png,webp}'],
+          runtimeCaching: [],
+        },
+      }),
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
