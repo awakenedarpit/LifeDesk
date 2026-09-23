@@ -10,6 +10,8 @@ export const AuthView: React.FC = () => {
   // Login state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   // Signup state
   const [name, setName] = useState('');
@@ -28,15 +30,6 @@ export const AuthView: React.FC = () => {
     setIsSubmitting(true);
     try {
       await login(email, password);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleQuickDemo = async () => {
-    setIsSubmitting(true);
-    try {
-      await login('aryan.sharma@campus.edu', 'student123');
     } finally {
       setIsSubmitting(false);
     }
@@ -173,14 +166,24 @@ export const AuthView: React.FC = () => {
                   Forgot?
                 </button>
               </div>
-              <input
-                required
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full h-11 px-3.5 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none focus:bg-surface-container-high transition-colors"
-              />
+              <div className="relative">
+                <input
+                  required
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full h-11 px-3.5 pr-11 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none focus:bg-surface-container-high transition-colors"
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[18px]">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                </button>
+              </div>
             </div>
 
             <button
@@ -192,18 +195,6 @@ export const AuthView: React.FC = () => {
               <span>{isSubmitting ? 'Signing In...' : 'Sign In to LifeDesk'}</span>
             </button>
 
-            {/* Quick Demo Login One-Click */}
-            <div className="pt-2 border-t border-surface-container flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={handleQuickDemo}
-                disabled={isSubmitting}
-                className="h-10 px-3 bg-surface-container-high hover:bg-surface-container text-on-surface rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-[16px] text-primary">bolt</span>
-                <span>Quick Demo Login (Pre-loaded Aryan Sharma)</span>
-              </button>
-            </div>
           </form>
         )}
 
@@ -256,14 +247,24 @@ export const AuthView: React.FC = () => {
               <label className="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider block mb-1">
                 Create Password *
               </label>
-              <input
-                required
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Min 6 characters"
-                className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none"
-              />
+              <div className="relative">
+                <input
+                  required
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Min 6 characters"
+                  className="w-full h-10 px-3 pr-11 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none"
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[17px]">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                </button>
+              </div>
             </div>
 
             <button
@@ -354,14 +355,24 @@ export const AuthView: React.FC = () => {
               <label className="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider block mb-1">
                 New Password
               </label>
-              <input
-                required
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="New password (min 6 characters)"
-                className="w-full h-11 px-3.5 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none"
-              />
+              <div className="relative">
+                <input
+                  required
+                  type={showNewPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="New password (min 6 characters)"
+                  className="w-full h-11 px-3.5 pr-11 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none"
+                />
+                <button
+                  type="button"
+                  aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
+                  onClick={() => setShowNewPassword((visible) => !visible)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[18px]">{showNewPassword ? 'visibility_off' : 'visibility'}</span>
+                </button>
+              </div>
             </div>
 
             <button
