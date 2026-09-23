@@ -495,17 +495,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deleteAccount = async () => {
     const client = getSupabaseClient();
+
     if (client && user.id) {
       try {
-        // Profile cascade will remove all child rows via ON DELETE CASCADE
-        await client.from('profiles').delete().eq('id', user.id);
+        // Auth account deletion must happen server-side using the Supabase service-role key.
+        // The Edge Function validates the current session before deleting auth.users.
+        const { error } = await client.functions.invoke('delete-account', {
+          method: 'POST',
+        });
+
+        if (error) {
+          console.error('Account deletion failed:', error);
+          showToast('Account deletion could not be completed. Your data is still safe.', 'error');
+          return;
+        }
+
         await supabaseService.signOut();
       } catch (err) {
-        console.warn('Supabase delete account warning:', err);
+        console.error('Account deletion failed:', err);
+        showToast('Account deletion could not be completed. Please try again.', 'error');
+        return;
       }
     }
+
     localStorage.clear();
-    showToast('Account data cleared.', 'info');
+    showToast('Your LifeDesk account and data have been deleted.', 'success');
     window.location.reload();
   };
 
