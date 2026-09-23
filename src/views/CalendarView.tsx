@@ -6,7 +6,7 @@ import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 type CalendarMode = 'month' | 'week' | 'day';
 
 export const CalendarView: React.FC = () => {
-  const { events, deadlines, tasks, addEvent, updateEvent, deleteEvent, openModal } = useApp();
+  const { events, deadlines, tasks, hackathons, addEvent, updateEvent, deleteEvent, openModal } = useApp();
 
   const [mode, setMode] = useState<CalendarMode>('month');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
