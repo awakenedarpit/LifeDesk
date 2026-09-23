@@ -102,8 +102,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   phone TEXT DEFAULT '',
   college TEXT DEFAULT '',
   course TEXT DEFAULT '',
-  year TEXT DEFAULT '4th Year',
-  semester TEXT DEFAULT 'Sem VII',
+  year TEXT DEFAULT '1st Year',
+  semester TEXT DEFAULT 'Sem 1',
   bio TEXT DEFAULT '',
   avatar_url TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -245,11 +245,11 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'full_name', SPLIT_PART(NEW.email, '@', 1)),
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'phone', ''),
-    COALESCE(NEW.raw_user_meta_data->>'college', 'National Institute of Technology'),
-    COALESCE(NEW.raw_user_meta_data->>'course', 'B.Tech - Computer Science & Engineering'),
-    COALESCE(NEW.raw_user_meta_data->>'year', '4th Year'),
-    COALESCE(NEW.raw_user_meta_data->>'semester', 'Sem VII'),
-    COALESCE(NEW.raw_user_meta_data->>'bio', 'Systems engineer & hackathon builder'),
+    COALESCE(NEW.raw_user_meta_data->>'college', 'Indore Institute of Science and Technology'),
+    COALESCE(NEW.raw_user_meta_data->>'course', 'B.Tech - Artificial Intelligence and Machine Learning'),
+    COALESCE(NEW.raw_user_meta_data->>'year', '1st Year'),
+    COALESCE(NEW.raw_user_meta_data->>'semester', 'Sem 1'),
+    COALESCE(NEW.raw_user_meta_data->>'bio', ''),
     COALESCE(NEW.raw_user_meta_data->>'avatar_url', 'https://lh3.googleusercontent.com/aida/AEtjO1UEgUlihmPnmz7-G4PHbl3pC1m1eEBx9V7IfsB6x7Bu1e1qkGgR4JntQeww1cNwkHE22XSFgWKmV-Swd1ODRC7FAnfZa_RQ7rxRwOKsPzqZJ6g71fU3J8hPEjcPb9n6MZvN2HZJtaP2fCtsYv4luUc3WnBPVwe0sn6AeMzTfbQQQAcP3hr6yjcM27a_4bIsS-8abxk3kWdA-bItHgPBzr0faPFmVagKKMjUnF7PNdrb-YqkGtQ06MQ2abHq2bAI-F-VKlth0God-A')
   )
   ON CONFLICT (id) DO UPDATE
