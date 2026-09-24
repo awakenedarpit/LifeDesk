@@ -3,15 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect } from 'react';
-import './services/googleCalendarAutoSyncPatch';
-import { syncGoogleCalendarToLifeDesk } from './services/googleCalendarSync';
+import React from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
 import { ToastContainer } from './components/ToastContainer';
 import { QuickActionModal } from './components/QuickActionModal';
+import { SyncButton } from './components/SyncButton';
 import { GoogleCalendarConnect } from './components/GoogleCalendarConnect';
 import { AuthView } from './views/AuthView';
 import { DashboardView } from './views/DashboardView';
@@ -24,44 +23,6 @@ import { ProfileSettingsView } from './views/ProfileSettingsView';
 
 const MainShell: React.FC = () => {
   const { isAuthenticated, activeTab } = useApp();
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    let cancelled = false;
-
-    const pull = async () => {
-      if (cancelled) return;
-
-      try {
-        const result = await syncGoogleCalendarToLifeDesk();
-
-        if (cancelled) return;
-
-        if (result.ok && (result.created || result.updated || result.deleted)) {
-          window.dispatchEvent(new CustomEvent('lifedesk-google-calendar-updated', {
-            detail: result,
-          }));
-        }
-      } catch (error) {
-        // Calendar synchronization must never interrupt or clear the main
-        // LifeDesk UI. Supabase Realtime updates the AppContext when the pull
-        // function actually changes task records.
-        console.warn('[LifeDesk] Google Calendar background sync failed:', error);
-      }
-    };
-
-    // Run once after authentication and then every 60 seconds. Do not include
-    // refreshData here: AppContext exposes that function as a new function on
-    // renders, which previously caused this effect to restart continuously.
-    void pull();
-    const interval = window.setInterval(() => void pull(), 60_000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [isAuthenticated]);
 
   if (!isAuthenticated) {
     return (
@@ -77,7 +38,12 @@ const MainShell: React.FC = () => {
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <Header />
+        <div className="relative">
+          <Header />
+          <div className="fixed md:absolute top-14 md:top-3 right-3 sm:right-6 lg:right-8 z-50">
+            <SyncButton />
+          </div>
+        </div>
 
         <main className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 pt-18 md:pt-6 pb-24 md:pb-10 transition-all">
           {activeTab === 'dashboard' && <DashboardView />}
