@@ -1,83 +1,65 @@
 import React, { useEffect, useState } from 'react';
 import { Download, X } from 'lucide-react';
 
-type BeforeInstallPromptEvent = Event & {
+type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 };
 
+const isStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches ||
+  (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+
 export const InstallPWA: React.FC = () => {
-  const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  const [visible, setVisible] = useState(false);
-  const [installed, setInstalled] = useState(false);
+  const [promptEvent, setPromptEvent] = useState<InstallPromptEvent | null>(null);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    const standalone = window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+    if (isStandalone()) return;
 
-    if (standalone) {
-      setInstalled(true);
-      return;
-    }
-
-    const handleBeforeInstallPrompt = (event: Event) => {
+    const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
-      const promptEvent = event as BeforeInstallPromptEvent;
-      setInstallEvent(promptEvent);
-      setVisible(true);
+      setPromptEvent(event as InstallPromptEvent);
     };
 
-    const handleAppInstalled = () => {
-      setInstalled(true);
-      setVisible(false);
-      setInstallEvent(null);
+    const onInstalled = () => {
+      setPromptEvent(null);
+      setDismissed(true);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
+    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+    window.addEventListener('appinstalled', onInstalled);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
+      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
     };
   }, []);
 
   const install = async () => {
-    if (!installEvent) return;
-    await installEvent.prompt();
-    const choice = await installEvent.userChoice;
-    if (choice.outcome === 'accepted') {
-      setVisible(false);
-    }
-    setInstallEvent(null);
+    if (!promptEvent) return;
+    await promptEvent.prompt();
+    await promptEvent.userChoice;
+    setPromptEvent(null);
   };
 
-  if (installed || !visible || !installEvent) return null;
+  if (!promptEvent || dismissed) return null;
 
   return (
-    <div className="fixed bottom-20 md:bottom-5 right-3 sm:right-5 z-[100] w-[calc(100%-1.5rem)] max-w-sm">
-      <div className="bg-surface-container-lowest border border-surface-container rounded-2xl shadow-xl p-4 flex items-center gap-3">
-        <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-          <Download size={21} strokeWidth={2.2} />
+    <div className="fixed left-3 right-3 bottom-20 md:left-auto md:right-5 md:bottom-5 z-[100] md:w-[390px]">
+      <div className="relative rounded-2xl border border-surface-container bg-surface-container-lowest p-4 shadow-2xl flex items-center gap-3">
+        <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+          <Download size={21} />
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 pr-2">
           <p className="text-sm font-bold text-on-surface">Install LifeDesk</p>
-          <p className="text-xs text-on-surface-variant mt-0.5">Add LifeDesk to your device for quick access and an app-like experience.</p>
+          <p className="text-xs text-on-surface-variant mt-0.5">Use LifeDesk like an app on your device.</p>
+          <button type="button" onClick={install} className="mt-2 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-on-primary">
+            Install
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setVisible(false)}
-          aria-label="Dismiss install prompt"
-          className="w-7 h-7 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high flex-shrink-0"
-        >
-          <X size={16} />
-        </button>
-        <button
-          type="button"
-          onClick={install}
-          className="absolute right-4 bottom-3 text-xs font-bold text-primary hover:underline"
-        >
-          Install
+        <button type="button" onClick={() => setPromptEvent(null)} aria-label="Dismiss" className="absolute right-2 top-2 w-7 h-7 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high">
+          <X size={15} />
         </button>
       </div>
     </div>
