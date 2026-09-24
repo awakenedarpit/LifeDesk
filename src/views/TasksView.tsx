@@ -8,7 +8,7 @@ type FilterTab = 'all' | 'today' | 'upcoming' | 'completed' | 'overdue';
 export const TasksView: React.FC = () => {
   const { tasks, updateTask, deleteTask, toggleTaskStatus, openModal } = useApp();
 
-  const [activeTab, setActiveTab] = useState<FilterTab>('all');
+  const [activeTab, setActiveTab] = useState<FilterTab>('today');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
