@@ -6,8 +6,9 @@ import type { Task } from '../types';
  * Keeps the existing LifeDesk task workflow intact while adding
  * best-effort Google Calendar synchronization after task CRUD succeeds.
  *
- * This is intentionally a small compatibility layer so the existing
- * AppContext task UI does not need to be rewritten.
+ * Delete is synchronized BEFORE the local task is removed. This is important
+ * because the Google event mapping is keyed by the LifeDesk task id, and it
+ * guarantees the mapping is still available when the delete request runs.
  */
 
 const PATCH_FLAG = '__lifedeskGoogleCalendarTaskSyncPatched';
@@ -64,16 +65,31 @@ if (!service[PATCH_FLAG]) {
   supabaseService.deleteTask = async (...args) => {
     const [taskId] = args;
 
-    await originalDeleteTask(...args);
+    /*
+     * Sync BEFORE deleting the LifeDesk task.
+     *
+     * The sync function uses taskId -> google_event_id mapping, so doing this
+     * first makes the operation deterministic and avoids races with task/UI
+     * refreshes after the local delete.
+     */
+    try {
+      const synced = await syncTaskToGoogleCalendar('delete', {
+        id: taskId,
+      } as Task);
 
-    // The mapping table contains the Google event ID, so the delete operation
-    // only needs the original LifeDesk task ID.
-    void syncTaskToGoogleCalendar('delete', {
-      id: taskId,
-    } as Task).then((synced) => {
       if (!synced) {
         console.info('[LifeDesk] Google Calendar delete sync skipped or unavailable.');
       }
-    });
+    } catch (error) {
+      /*
+       * Calendar sync must never prevent the user's normal LifeDesk delete.
+       */
+      console.warn('[LifeDesk] Google Calendar delete sync error:', error);
+    }
+
+    /*
+     * Preserve the existing LifeDesk workflow exactly as before.
+     */
+    return await originalDeleteTask(...args);
   };
 }
