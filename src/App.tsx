@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import './services/googleCalendarAutoSyncPatch';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
