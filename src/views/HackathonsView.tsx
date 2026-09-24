@@ -16,16 +16,6 @@ const PROBLEM_STATEMENT_OPTIONS: ProblemStatementStatus[] = [
   'To Be Announced on Event Day',
 ];
 
-const DEFAULT_STAGES: MilestoneStage[] = [
-  'Registration',
-  'Idea Submission',
-  'PPT Submission',
-  'Screening Quiz',
-  'Prototype',
-  'Final Submission',
-  'Final Pitch',
-];
-
 const today = () => new Date().toISOString().split('T')[0];
 
 // Older hackathons do not have dedicated DB columns for the new fields yet.
@@ -106,6 +96,34 @@ export const HackathonsView: React.FC = () => {
   const [problemStatementStatus, setProblemStatementStatus] = useState<ProblemStatementStatus>('Not Announced');
   const [problemStatement, setProblemStatement] = useState('');
   const [eventDate, setEventDate] = useState(today());
+  const [selectedMilestoneStages, setSelectedMilestoneStages] = useState<MilestoneStage[]>([]);
+  const [milestoneDates, setMilestoneDates] = useState<Record<string, string>>({});
+
+  const milestoneOptions: MilestoneStage[] = [
+    'Registration',
+    'Idea Submission',
+    'PPT Submission',
+    'Screening Quiz',
+    'Prototype',
+    'Final Submission',
+    'Final Pitch',
+  ];
+
+  const toggleMilestoneSelection = (stage: MilestoneStage) => {
+    setSelectedMilestoneStages((current) => {
+      if (current.includes(stage)) {
+        setMilestoneDates((dates) => {
+          const next = { ...dates };
+          delete next[stage];
+          return next;
+        });
+        return current.filter((item) => item !== stage);
+      }
+
+      setMilestoneDates((dates) => ({ ...dates, [stage]: dates[stage] || eventDate }));
+      return [...current, stage];
+    });
+  };
 
   const resetCreateForm = () => {
     setName('');
@@ -115,6 +133,8 @@ export const HackathonsView: React.FC = () => {
     setProblemStatementStatus('Not Announced');
     setProblemStatement('');
     setEventDate(today());
+    setSelectedMilestoneStages([]);
+    setMilestoneDates({});
     setBannerImage('https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80');
   };
 
@@ -144,13 +164,13 @@ export const HackathonsView: React.FC = () => {
       problemStatementStatus,
       problemStatement: problemStatement.trim(),
       eventDate,
-      milestones: DEFAULT_STAGES.map((stage, idx) => ({
+      milestones: selectedMilestoneStages.map((stage, idx) => ({
         id: `ms-${Date.now()}-${idx}`,
         hackathonId: hackId,
         stage,
         title: stage,
-        date: eventDate,
-        status: idx === 0 ? 'Completed' : idx === 1 ? 'Current' : 'Pending',
+        date: milestoneDates[stage] || eventDate,
+        status: 'Pending',
       })),
     });
 
@@ -276,7 +296,28 @@ export const HackathonsView: React.FC = () => {
                 {problemStatementStatus === 'Selected' && <div><label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">Selected Problem Statement *</label><textarea required value={problemStatement} onChange={(e) => setProblemStatement(e.target.value)} placeholder="Enter the selected problem statement" className="w-full min-h-20 p-3 bg-surface-container-lowest rounded-xl text-on-surface text-xs outline-none resize-none" /></div>}
               </div>
 
-              <div><label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">Hackathon / Event Date *</label><input required type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none" /><p className="text-[10px] text-on-surface-variant mt-1">All default milestones will start on this same date. You can edit individual dates later.</p></div>
+              <div><label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">Hackathon / Event Date *</label><input required type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none" /><p className="text-[10px] text-on-surface-variant mt-1">This is the default date used when you select a timeline.</p></div>
+
+              <div className="p-3 rounded-xl bg-surface-container-low border border-surface-container flex flex-col gap-2.5">
+                <div>
+                  <label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block">Milestone Timelines</label>
+                  <p className="text-[10px] text-on-surface-variant mt-1">Select only the timelines you want. Nothing is created automatically.</p>
+                </div>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {milestoneOptions.map((stage) => {
+                    const selected = selectedMilestoneStages.includes(stage);
+                    return (
+                      <div key={stage} className="flex items-center gap-2">
+                        <button type="button" onClick={() => toggleMilestoneSelection(stage)} className={`flex-1 h-9 px-3 rounded-lg border text-left text-xs font-semibold transition-all ${selected ? 'border-primary bg-primary/10 text-primary' : 'border-surface-container bg-surface-container-lowest text-on-surface-variant hover:border-primary/40'}`}>
+                          <span className="material-symbols-outlined align-middle text-[15px] mr-1">{selected ? 'check_box' : 'check_box_outline_blank'}</span>{stage}
+                        </button>
+                        {selected && <input aria-label={`${stage} date`} required type="date" value={milestoneDates[stage] || eventDate} onChange={(e) => setMilestoneDates((dates) => ({ ...dates, [stage]: e.target.value }))} className="h-9 w-[132px] px-2 bg-surface-container-lowest border border-surface-container rounded-lg text-on-surface text-[11px] outline-none" />}
+                      </div>
+                    );
+                  })}
+                </div>
+                <span className="text-[10px] text-on-surface-variant">{selectedMilestoneStages.length} timeline{selectedMilestoneStages.length === 1 ? '' : 's'} selected</span>
+              </div>
               <div><label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">Immediate Deliverable</label><input type="text" value={deliverable} onChange={(e) => setDeliverable(e.target.value)} placeholder="e.g. PPT / Prototype / Final Pitch" className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none" /></div>
               <div><label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">Current Stage Timeline</label><input type="text" value={currentStage} onChange={(e) => setCurrentStage(e.target.value)} placeholder="e.g. Idea Submission in 3 days" className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none" /></div>
               <div><label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">Banner Image URL</label><input type="url" value={bannerImage} onChange={(e) => setBannerImage(e.target.value)} className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none" /></div>
