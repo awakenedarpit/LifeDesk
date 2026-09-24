@@ -8,7 +8,6 @@ const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3";
-const DEFAULT_TIME_ZONE = "Asia/Kolkata";
 const LOOKBACK_DAYS = 30;
 const LOOKAHEAD_DAYS = 365;
 
@@ -40,7 +39,7 @@ async function getUser(req: Request) {
   return data.user;
 }
 
-async function getAccessToken(admin: ReturnType<typeof createClient>, connection: any) {
+async function getAccessToken(admin: ReturnType<typeof createClient>, connection: Record<string, any>) {
   const expiresAt = connection.access_token_expires_at
     ? new Date(connection.access_token_expires_at).getTime()
     : 0;
@@ -94,27 +93,8 @@ async function googleGet(accessToken: string, path: string) {
 
 function eventDateTime(event: any): string | null {
   if (event.start?.dateTime) return new Date(event.start.dateTime).toISOString();
-  if (event.start?.date) {
-    return new Date(`${event.start.date}T09:00:00+05:30`).toISOString();
-  }
+  if (event.start?.date) return new Date(`${event.start.date}T09:00:00+05:30`).toISOString();
   return null;
-}
-
-function eventEnd(event: any): string | null {
-  if (event.end?.dateTime) return new Date(event.end.dateTime).toISOString();
-  if (event.end?.date) {
-    return new Date(`${event.end.date}T10:00:00+05:30`).toISOString();
-  }
-  return null;
-}
-
-function eventDescription(event: any) {
-  return event.description || "";
-}
-
-function eventNotes(event: any) {
-  const source = event.extendedProperties?.private?.lifedesk_source;
-  return source === "google" ? "Imported from Google Calendar" : "Google Calendar synced event";
 }
 
 Deno.serve(async (req: Request) => {
@@ -132,7 +112,7 @@ Deno.serve(async (req: Request) => {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (connectionError) return json({ error: "Could not read Google Calendar connection." }, 500);
+    if (connectionError) return json({ error: "Could not read Google Calendar connection.", details: connectionError.message }, 500);
     if (!connection?.refresh_token) return json({ ok: true, synced: false, reason: "NOT_CONNECTED" });
 
     const accessToken = await getAccessToken(admin, connection);
@@ -175,7 +155,7 @@ Deno.serve(async (req: Request) => {
       .eq("user_id", user.id)
       .eq("google_calendar_id", calendarId);
 
-    if (linksError) return json({ error: "Could not read calendar mappings." }, 500);
+    if (linksError) return json({ error: "Could not read calendar mappings.", details: linksError.message }, 500);
 
     const linkByEventId = new Map((links || []).map((link: any) => [link.google_event_id, link]));
     const seenEventIds = new Set<string>();
@@ -189,44 +169,52 @@ Deno.serve(async (req: Request) => {
       seenEventIds.add(event.id);
 
       const link = linkByEventId.get(event.id);
-      const status = event.status || "confirmed";
 
-      if (status === "cancelled") {
+      if (event.status === "cancelled") {
         if (link) {
-          await admin.from("tasks").delete().eq("id", link.task_id).eq("user_id", user.id);
-          await admin.from("google_calendar_event_links").delete().eq("id", link.id);
-          deleted++;
+          const { error: taskDeleteError } = await admin.from("tasks")
+            .delete().eq("id", link.task_id).eq("user_id", user.id);
+          if (!taskDeleteError) {
+            await admin.from("google_calendar_event_links").delete().eq("id", link.id);
+            deleted++;
+          } else {
+            console.error("Failed to delete LifeDesk task for cancelled Google event:", taskDeleteError);
+          }
         }
         continue;
       }
 
-      if (!event.summary?.trim()) {
-        skipped++;
-        continue;
-      }
-
+      const title = String(event.summary || "").trim();
       const deadline = eventDateTime(event);
-      if (!deadline) {
+      if (!title || !deadline) {
         skipped++;
         continue;
       }
 
-      const description = eventDescription(event);
-      const googleTaskId = event.extendedProperties?.private?.lifedesk_task_id;
+      const description = event.description || "";
+      const privateProps = event.extendedProperties?.private || {};
 
       if (link) {
         const { error } = await admin.from("tasks").update({
-          title: event.summary,
+          title,
           description,
           deadline,
-          notes: eventNotes(event),
+          notes: privateProps.lifedesk_source === "google"
+            ? "Imported from Google Calendar"
+            : "Google Calendar synced event",
           updated_at: new Date().toISOString(),
         }).eq("id", link.task_id).eq("user_id", user.id);
 
         if (!error) updated++;
+        else console.error("Failed to update linked LifeDesk task:", error);
         continue;
       }
 
+      /*
+       * Events created by LifeDesk already carry the task ID. If a mapping
+       * disappeared, reconnect it instead of creating a duplicate task.
+       */
+      const googleTaskId = privateProps.lifedesk_task_id;
       if (googleTaskId) {
         const { data: existingTask } = await admin.from("tasks")
           .select("id")
@@ -235,35 +223,43 @@ Deno.serve(async (req: Request) => {
           .maybeSingle();
 
         if (existingTask) {
-          await admin.from("google_calendar_event_links").upsert({
+          const { error: remapError } = await admin.from("google_calendar_event_links").upsert({
             user_id: user.id,
             task_id: existingTask.id,
             google_calendar_id: calendarId,
             google_event_id: event.id,
             updated_at: new Date().toISOString(),
           }, { onConflict: "user_id,task_id" });
-          updated++;
+
+          if (!remapError) updated++;
+          else console.error("Failed to restore event mapping:", remapError);
           continue;
         }
       }
 
+      /*
+       * Import a normal Google Calendar event as a valid LifeDesk task.
+       * 'Personal' is part of LifeDesk's actual TaskCategory union/schema;
+       * the old 'Google Calendar' category was invalid and could make the
+       * insert fail silently from the UI's perspective.
+       */
       const { data: task, error: taskError } = await admin.from("tasks")
         .insert({
           user_id: user.id,
-          title: event.summary,
+          title,
           description,
-          category: "Google Calendar",
+          category: "Personal",
           deadline,
           priority: "Medium",
           status: "Not Started",
-          notes: eventNotes(event),
-          tags: ["google-calendar"],
+          notes: "Imported from Google Calendar",
+          tags: ["google-calendar", "imported"],
         })
         .select("id")
         .single();
 
       if (taskError || !task) {
-        console.error("Failed to import Google event:", taskError);
+        console.error("Failed to import Google event into LifeDesk:", taskError);
         continue;
       }
 
@@ -280,8 +276,11 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      // Mark imported event so future syncs can identify its LifeDesk origin.
-      const patchResult = await fetch(
+      /*
+       * Tag imported Google events so future syncs can identify their source.
+       * This PATCH is best-effort; the task and mapping remain valid if it fails.
+       */
+      const patchResponse = await fetch(
         `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(event.id)}`,
         {
           method: "PATCH",
@@ -292,7 +291,7 @@ Deno.serve(async (req: Request) => {
           body: JSON.stringify({
             extendedProperties: {
               private: {
-                ...(event.extendedProperties?.private || {}),
+                ...privateProps,
                 lifedesk_task_id: task.id,
                 lifedesk_user_id: user.id,
                 lifedesk_source: "google",
@@ -302,22 +301,19 @@ Deno.serve(async (req: Request) => {
         },
       );
 
-      if (!patchResult.ok) {
-        console.warn("Could not mark imported Google event with LifeDesk metadata:", await patchResult.text());
+      if (!patchResponse.ok) {
+        console.warn("Could not mark imported Google event with LifeDesk metadata:", await patchResponse.text());
       }
 
       created++;
     }
 
-    // Detect linked events that disappeared from Google within the sync window.
-    // Google normally returns cancelled events with showDeleted=true, but this
-    // fallback also handles an event that is no longer returned at all.
-    for (const link of links || []) {
-      if (seenEventIds.has(link.google_event_id)) continue;
-      await admin.from("tasks").delete().eq("id", link.task_id).eq("user_id", user.id);
-      await admin.from("google_calendar_event_links").delete().eq("id", link.id);
-      deleted++;
-    }
+    /*
+     * Do NOT infer deletion merely because an event is absent from this
+     * time-window query. Google already returns cancelled events when
+     * showDeleted=true. Deleting absent mappings here could remove valid
+     * LifeDesk tasks when the event is outside the current query window.
+     */
 
     await admin.from("google_calendar_connections").update({
       sync_status: "connected",
