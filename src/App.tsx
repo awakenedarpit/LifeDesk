@@ -23,7 +23,7 @@ import { AnalyticsView } from './views/AnalyticsView';
 import { ProfileSettingsView } from './views/ProfileSettingsView';
 
 const MainShell: React.FC = () => {
-  const { isAuthenticated, activeTab } = useApp();
+  const { isAuthenticated, activeTab, refreshData } = useApp();
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -32,8 +32,19 @@ const MainShell: React.FC = () => {
 
     const pull = async () => {
       if (cancelled) return;
+
       const result = await syncGoogleCalendarToLifeDesk();
+
+      if (cancelled) return;
+
+      /*
+       * The pull function writes imported/updated tasks directly to Supabase.
+       * Refresh the AppContext immediately afterwards so the live UI reflects
+       * those database changes without requiring a page reload.
+       */
       if (result.ok && (result.created || result.updated || result.deleted)) {
+        await refreshData();
+
         window.dispatchEvent(new CustomEvent('lifedesk-google-calendar-updated', {
           detail: result,
         }));
@@ -50,7 +61,7 @@ const MainShell: React.FC = () => {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, refreshData]);
 
   if (!isAuthenticated) {
     return (
