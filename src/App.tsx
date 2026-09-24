@@ -23,7 +23,7 @@ import { AnalyticsView } from './views/AnalyticsView';
 import { ProfileSettingsView } from './views/ProfileSettingsView';
 
 const MainShell: React.FC = () => {
-  const { isAuthenticated, activeTab, refreshData } = useApp();
+  const { isAuthenticated, activeTab } = useApp();
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -33,27 +33,27 @@ const MainShell: React.FC = () => {
     const pull = async () => {
       if (cancelled) return;
 
-      const result = await syncGoogleCalendarToLifeDesk();
+      try {
+        const result = await syncGoogleCalendarToLifeDesk();
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      /*
-       * The pull function writes imported/updated tasks directly to Supabase.
-       * Refresh the AppContext immediately afterwards so the live UI reflects
-       * those database changes without requiring a page reload.
-       */
-      if (result.ok && (result.created || result.updated || result.deleted)) {
-        await refreshData();
-
-        window.dispatchEvent(new CustomEvent('lifedesk-google-calendar-updated', {
-          detail: result,
-        }));
+        if (result.ok && (result.created || result.updated || result.deleted)) {
+          window.dispatchEvent(new CustomEvent('lifedesk-google-calendar-updated', {
+            detail: result,
+          }));
+        }
+      } catch (error) {
+        // Calendar synchronization must never interrupt or clear the main
+        // LifeDesk UI. Supabase Realtime updates the AppContext when the pull
+        // function actually changes task records.
+        console.warn('[LifeDesk] Google Calendar background sync failed:', error);
       }
     };
 
-    // Pull immediately after authentication, then periodically while LifeDesk
-    // is open. This gives Google -> LifeDesk synchronization without changing
-    // the existing task workflow or requiring a manual Sync button.
+    // Run once after authentication and then every 60 seconds. Do not include
+    // refreshData here: AppContext exposes that function as a new function on
+    // renders, which previously caused this effect to restart continuously.
     void pull();
     const interval = window.setInterval(() => void pull(), 60_000);
 
@@ -61,7 +61,7 @@ const MainShell: React.FC = () => {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [isAuthenticated, refreshData]);
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) {
     return (
