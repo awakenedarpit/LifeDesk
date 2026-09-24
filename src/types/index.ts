@@ -66,6 +66,8 @@ export interface HackathonMilestone {
   associatedTaskId?: string;
 }
 
+export type ProblemStatementStatus = 'Not Announced' | 'To Be Announced Today' | 'Selected' | 'To Be Announced on Event Day';
+
 export interface Hackathon {
   id: string;
   name: string;
@@ -78,6 +80,9 @@ export interface Hackathon {
   deliverable?: string;
   bannerImage?: string;
   milestones: HackathonMilestone[];
+  problemStatementStatus?: ProblemStatementStatus;
+  problemStatement?: string;
+  eventDate?: string;
 }
 
 export type ExpenseCategory = 'Food' | 'Travel' | 'College' | 'Study Material' | 'Software' | 'Hackathon' | 'Shopping' | 'Entertainment' | 'Recharge' | 'Hostel / Room' | 'Other';
