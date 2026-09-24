@@ -5,6 +5,7 @@ import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
 import { ToastContainer } from './components/ToastContainer';
 import { QuickActionModal } from './components/QuickActionModal';
+import { InstallPWA } from './components/InstallPWA';
 import { AuthView } from './views/AuthView';
 import { DashboardView } from './views/DashboardView';
 import { TasksView } from './views/TasksView';
@@ -36,6 +37,7 @@ const MainShell: React.FC = () => {
       </div>
       <BottomNav />
       <QuickActionModal />
+      <InstallPWA />
       <ToastContainer />
     </div>
   );
