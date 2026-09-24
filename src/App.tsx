@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import './services/googleCalendarAutoSyncPatch';
+import { syncGoogleCalendarToLifeDesk } from './services/googleCalendarSync';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -23,6 +24,33 @@ import { ProfileSettingsView } from './views/ProfileSettingsView';
 
 const MainShell: React.FC = () => {
   const { isAuthenticated, activeTab } = useApp();
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let cancelled = false;
+
+    const pull = async () => {
+      if (cancelled) return;
+      const result = await syncGoogleCalendarToLifeDesk();
+      if (result.ok && (result.created || result.updated || result.deleted)) {
+        window.dispatchEvent(new CustomEvent('lifedesk-google-calendar-updated', {
+          detail: result,
+        }));
+      }
+    };
+
+    // Pull immediately after authentication, then periodically while LifeDesk
+    // is open. This gives Google -> LifeDesk synchronization without changing
+    // the existing task workflow or requiring a manual Sync button.
+    void pull();
+    const interval = window.setInterval(() => void pull(), 60_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) {
     return (
