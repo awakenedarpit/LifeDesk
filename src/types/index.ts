@@ -10,7 +10,6 @@ export type TaskCategory =
   | 'Other';
 
 export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
-
 export type TaskStatus = 'Not Started' | 'In Progress' | 'Completed';
 
 export interface Task {
@@ -18,7 +17,7 @@ export interface Task {
   name: string;
   description: string;
   category: TaskCategory;
-  deadline: string; // ISO date-time string
+  deadline: string;
   priority: TaskPriority;
   status: TaskStatus;
   notes?: string;
@@ -26,16 +25,7 @@ export interface Task {
   createdAt: string;
 }
 
-export type DeadlineCategory = 
-  | 'Assignment'
-  | 'Practical'
-  | 'PPT'
-  | 'Project'
-  | 'Hackathon'
-  | 'Quiz'
-  | 'Exam'
-  | 'Event';
-
+export type DeadlineCategory = 'Assignment' | 'Practical' | 'PPT' | 'Project' | 'Hackathon' | 'Quiz' | 'Exam' | 'Event';
 export type DeadlineStatus = 'Upcoming' | 'Due Soon' | 'Overdue' | 'Completed';
 
 export interface Deadline {
@@ -43,7 +33,7 @@ export interface Deadline {
   title: string;
   description: string;
   category: DeadlineCategory;
-  dueDate: string; // ISO date-time string
+  dueDate: string;
   status: DeadlineStatus;
   taskId?: string;
 }
@@ -53,23 +43,15 @@ export interface CalendarEvent {
   title: string;
   description?: string;
   category: string;
-  startDate: string; // ISO date string YYYY-MM-DD
-  startTime?: string; // HH:mm
+  startDate: string;
+  startTime?: string;
   endDate?: string;
   allDay?: boolean;
   type: 'task' | 'deadline' | 'hackathon' | 'event';
   referenceId?: string;
 }
 
-export type MilestoneStage = 
-  | 'Registration'
-  | 'Idea Submission'
-  | 'PPT Submission'
-  | 'Screening Quiz'
-  | 'Prototype'
-  | 'Final Submission'
-  | 'Final Pitch';
-
+export type MilestoneStage = 'Registration' | 'Idea Submission' | 'PPT Submission' | 'Screening Quiz' | 'Prototype' | 'Final Submission' | 'Final Pitch';
 export type MilestoneStatus = 'Pending' | 'Current' | 'Completed' | 'Missed';
 
 export interface HackathonMilestone {
@@ -98,23 +80,9 @@ export interface Hackathon {
   milestones: HackathonMilestone[];
 }
 
-export type ExpenseCategory = 
-  | 'Food'
-  | 'Travel'
-  | 'College'
-  | 'Study Material'
-  | 'Software'
-  | 'Hackathon'
-  | 'Shopping'
-  | 'Entertainment'
-  | 'Recharge'
-  | 'Hostel / Room'
-  | 'Other';
-
+export type ExpenseCategory = 'Food' | 'Travel' | 'College' | 'Study Material' | 'Software' | 'Hackathon' | 'Shopping' | 'Entertainment' | 'Recharge' | 'Hostel / Room' | 'Other';
 export type PaymentSource = 'Cash' | 'UPI' | 'Card';
-
 export type IncomeDestination = 'UPI' | 'Cash';
-
 export type TransactionType = 'expense' | 'income' | 'transfer';
 
 export interface Transaction {
@@ -123,12 +91,12 @@ export interface Transaction {
   amount: number;
   description: string;
   category: ExpenseCategory | 'Pocket Money' | 'Scholarship' | 'Stipend' | 'Transfer' | 'Other';
-  date: string; // ISO date or YYYY-MM-DD
+  date: string;
   time?: string;
-  paymentSource?: PaymentSource; // For expenses
-  destination?: IncomeDestination; // For income
-  transferFrom?: 'UPI' | 'Cash'; // For transfer
-  transferTo?: 'UPI' | 'Cash'; // For transfer
+  paymentSource?: PaymentSource;
+  destination?: IncomeDestination;
+  transferFrom?: 'UPI' | 'Cash';
+  transferTo?: 'UPI' | 'Cash';
   notes?: string;
   status: 'Settled' | 'Pending' | 'Free Tier';
 }
@@ -147,19 +115,22 @@ export interface UserProfile {
   avatarUrl: string;
 }
 
-export interface Balances {
-  upiBalance: number;
-  cashBalance: number;
-}
-
+export interface Balances { upiBalance: number; cashBalance: number; }
 export type AppTheme = 'light' | 'dark' | 'system';
+export type AppNavTab = 'dashboard' | 'tasks' | 'calendar' | 'hackathons' | 'money' | 'analytics' | 'profile' | 'settings' | 'learning';
 
-export type AppNavTab = 
-  | 'dashboard' 
-  | 'tasks' 
-  | 'calendar' 
-  | 'hackathons' 
-  | 'money' 
-  | 'analytics' 
-  | 'profile' 
-  | 'settings';
+export interface LearningItem {
+  id: string;
+  userId: string;
+  topic: string;
+  category: string;
+  status: 'To Learn' | 'Learning' | 'Learned';
+  priority: 'Low' | 'Medium' | 'High';
+  source?: string;
+  resourceUrl?: string;
+  note?: string;
+  personalNotes?: string;
+  createdAt: string;
+  learnedAt?: string;
+  updatedAt: string;
+}
