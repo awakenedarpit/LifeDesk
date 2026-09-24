@@ -93,7 +93,7 @@ async function googleGet(accessToken: string, path: string) {
 
 function eventDateTime(event: any): string | null {
   if (event.start?.dateTime) return new Date(event.start.dateTime).toISOString();
-  if (event.start?.date) return new Date(`${event.start.date}T09:00:00+05:30`).toISOString();
+  if (event.start?.date) return `${event.start.date}T09:00:00.000Z`;
   return null;
 }
 
@@ -158,7 +158,6 @@ Deno.serve(async (req: Request) => {
     if (linksError) return json({ error: "Could not read calendar mappings.", details: linksError.message }, 500);
 
     const linkByEventId = new Map((links || []).map((link: any) => [link.google_event_id, link]));
-    const seenEventIds = new Set<string>();
     let created = 0;
     let updated = 0;
     let deleted = 0;
@@ -166,7 +165,6 @@ Deno.serve(async (req: Request) => {
 
     for (const event of allEvents) {
       if (!event.id) continue;
-      seenEventIds.add(event.id);
 
       const link = linkByEventId.get(event.id);
 
@@ -195,25 +193,54 @@ Deno.serve(async (req: Request) => {
       const privateProps = event.extendedProperties?.private || {};
 
       if (link) {
-        const { error } = await admin.from("tasks").update({
-          title,
-          description,
-          deadline,
-          notes: privateProps.lifedesk_source === "google"
-            ? "Imported from Google Calendar"
-            : "Google Calendar synced event",
-          updated_at: new Date().toISOString(),
-        }).eq("id", link.task_id).eq("user_id", user.id);
+        /*
+         * Do not UPDATE the task on every 60-second pull.
+         * Supabase Realtime listens to task UPDATEs and the previous code
+         * therefore caused repeated global reloads, which made the dashboard,
+         * treasury and task/calendar views flicker.
+         *
+         * Only write when a Google event actually changed.
+         */
+        const { data: existingTask, error: existingTaskError } = await admin
+          .from("tasks")
+          .select("id, title, description, deadline, notes")
+          .eq("id", link.task_id)
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-        if (!error) updated++;
-        else console.error("Failed to update linked LifeDesk task:", error);
+        if (existingTaskError) {
+          console.error("Failed to read linked LifeDesk task:", existingTaskError);
+          continue;
+        }
+
+        const nextNotes = privateProps.lifedesk_source === "google"
+          ? "Imported from Google Calendar"
+          : "Google Calendar synced event";
+
+        const changed = Boolean(existingTask) && (
+          existingTask.title !== title ||
+          (existingTask.description || "") !== description ||
+          (existingTask.deadline || "") !== deadline ||
+          (existingTask.notes || "") !== nextNotes
+        );
+
+        if (changed) {
+          const { error } = await admin.from("tasks").update({
+            title,
+            description,
+            deadline,
+            notes: nextNotes,
+            updated_at: new Date().toISOString(),
+          }).eq("id", link.task_id).eq("user_id", user.id);
+
+          if (!error) updated++;
+          else console.error("Failed to update linked LifeDesk task:", error);
+        }
+
         continue;
       }
 
-      /*
-       * Events created by LifeDesk already carry the task ID. If a mapping
-       * disappeared, reconnect it instead of creating a duplicate task.
-       */
+      /* Events created by LifeDesk already carry the task ID. */
       const googleTaskId = privateProps.lifedesk_task_id;
       if (googleTaskId) {
         const { data: existingTask } = await admin.from("tasks")
@@ -237,12 +264,7 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      /*
-       * Import a normal Google Calendar event as a valid LifeDesk task.
-       * 'Personal' is part of LifeDesk's actual TaskCategory union/schema;
-       * the old 'Google Calendar' category was invalid and could make the
-       * insert fail silently from the UI's perspective.
-       */
+      /* Import a normal Google event as a valid LifeDesk task. */
       const { data: task, error: taskError } = await admin.from("tasks")
         .insert({
           user_id: user.id,
@@ -276,10 +298,6 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      /*
-       * Tag imported Google events so future syncs can identify their source.
-       * This PATCH is best-effort; the task and mapping remain valid if it fails.
-       */
       const patchResponse = await fetch(
         `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(event.id)}`,
         {
@@ -307,13 +325,6 @@ Deno.serve(async (req: Request) => {
 
       created++;
     }
-
-    /*
-     * Do NOT infer deletion merely because an event is absent from this
-     * time-window query. Google already returns cancelled events when
-     * showDeleted=true. Deleting absent mappings here could remove valid
-     * LifeDesk tasks when the event is outside the current query window.
-     */
 
     await admin.from("google_calendar_connections").update({
       sync_status: "connected",
