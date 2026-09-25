@@ -1,0 +1,45 @@
+name: Fix participation field placement
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-participation-placement.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Move task participation block
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/components/QuickActionModal.tsx')
+          s = p.read_text()
+          start = s.find('            <div className="grid grid-cols-2 gap-2">\n    <div>\n      <label className="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider block mb-1">Participation</label>')
+          if start < 0:
+              raise SystemExit('Misplaced participation block not found')
+          end = s.find('  <div className="flex gap-2 pt-2">', start)
+          if end < 0:
+              raise SystemExit('Misplaced participation block end not found')
+          block = s[start:end]
+          s = s[:start] + s[end:]
+          task_marker = 'value={taskTags}'
+          task_pos = s.find(task_marker)
+          if task_pos < 0:
+              raise SystemExit('Task tags field not found')
+          action_pos = s.find('<div className="flex gap-2 pt-2">', task_pos)
+          if action_pos < 0:
+              raise SystemExit('Task action area not found')
+          s = s[:action_pos] + block + s[action_pos:]
+          p.write_text(s)
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/QuickActionModal.tsx
+          git commit -m "fix: place task participation fields in task form"
+          git push
