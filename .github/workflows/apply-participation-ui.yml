@@ -1,0 +1,189 @@
+name: Apply participation type UI
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-participation-ui.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch participation support
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          def patch(path, fn):
+              p = Path(path)
+              s = p.read_text()
+              ns = fn(s)
+              if ns == s:
+                  raise SystemExit(f'No changes made to {path}; expected marker may be missing.')
+              p.write_text(ns)
+
+          # Types
+          patch('src/types/index.ts', lambda s: s.replace(
+              "export type TaskStatus = 'Not Started' | 'In Progress' | 'Completed';",
+              "export type TaskStatus = 'Not Started' | 'In Progress' | 'Completed';\nexport type ParticipationType = 'Individual' | 'Team';"
+          ).replace(
+              "  tags?: string[];\n  createdAt: string;",
+              "  tags?: string[];\n  participationType?: ParticipationType;\n  teamName?: string;\n  createdAt: string;"
+          ).replace(
+              "  eventDate?: string;\n}",
+              "  eventDate?: string;\n  participationType?: ParticipationType;\n  teamName?: string;\n}"
+          ))
+
+          # Quick Task modal
+          def patch_quick(s):
+              s = s.replace(
+                  "import { ExpenseCategory, PaymentSource, IncomeDestination, TaskCategory, TaskPriority, DeadlineCategory } from '../types';",
+                  "import { ExpenseCategory, PaymentSource, IncomeDestination, TaskCategory, TaskPriority, DeadlineCategory, ParticipationType } from '../types';"
+              )
+              s = s.replace(
+                  "  const [taskTags, setTaskTags] = useState('');",
+                  "  const [taskTags, setTaskTags] = useState('');\n  const [taskParticipationType, setTaskParticipationType] = useState<ParticipationType>('Individual');\n  const [taskTeamName, setTaskTeamName] = useState('');"
+              )
+              s = s.replace(
+                  "      tags: taskTags ? taskTags.split(',').map((t) => t.trim()).filter(Boolean) : [],\n    });",
+                  "      tags: taskTags ? taskTags.split(',').map((t) => t.trim()).filter(Boolean) : [],\n      participationType: taskParticipationType,\n      teamName: taskParticipationType === 'Team' ? taskTeamName.trim() : '',\n    });"
+              )
+              s = s.replace(
+                  "    setTaskTags('');\n    closeModal();",
+                  "    setTaskTags('');\n    setTaskParticipationType('Individual');\n    setTaskTeamName('');\n    closeModal();"
+              )
+              marker = '<div className="flex gap-2 pt-2">'
+              block = '''<div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider block mb-1">Participation</label>
+                <select
+                  value={taskParticipationType}
+                  onChange={(e) => setTaskParticipationType(e.target.value as ParticipationType)}
+                  className="w-full h-10 px-2.5 bg-surface-container-low rounded-lg text-on-surface text-body-md outline-none focus:bg-surface-container-high transition-colors font-medium"
+                >
+                  <option value="Individual">Individual</option>
+                  <option value="Team">Team</option>
+                </select>
+              </div>
+              {taskParticipationType === 'Team' && (
+                <div>
+                  <label className="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider block mb-1">Team Name</label>
+                  <input
+                    type="text"
+                    value={taskTeamName}
+                    onChange={(e) => setTaskTeamName(e.target.value)}
+                    placeholder="e.g. Neural Nexus"
+                    className="w-full h-10 px-3 bg-surface-container-low rounded-lg text-on-surface text-body-md outline-none focus:bg-surface-container-high transition-colors"
+                  />
+                </div>
+              )}
+            </div>
+
+            '''
+              if marker not in s:
+                  raise SystemExit('QuickActionModal action marker not found')
+              return s.replace(marker, block + marker, 1)
+          patch('src/components/QuickActionModal.tsx', patch_quick)
+
+          # Supabase task/hackathon persistence
+          def patch_service(s):
+              s = s.replace(
+                  "      tags: row.tags || [],\n      createdAt: row.created_at || new Date().toISOString(),",
+                  "      tags: row.tags || [],\n      participationType: row.participation_type || 'Individual',\n      teamName: row.team_name || '',\n      createdAt: row.created_at || new Date().toISOString(),"
+              )
+              s = s.replace(
+                  "        tags: task.tags || [],\n      })",
+                  "        tags: task.tags || [],\n        participation_type: task.participationType || 'Individual',\n        team_name: task.teamName || null,\n      })",
+                  1
+              )
+              s = s.replace(
+                  "      tags: data.tags || [],\n      createdAt: data.created_at,",
+                  "      tags: data.tags || [],\n      participationType: data.participation_type || 'Individual',\n      teamName: data.team_name || '',\n      createdAt: data.created_at,",
+                  1
+              )
+              s = s.replace(
+                  "    if (updates.tags !== undefined) row.tags = updates.tags;\n\n    const { error } = await client.from('tasks').update(row)",
+                  "    if (updates.tags !== undefined) row.tags = updates.tags;\n    if (updates.participationType !== undefined) row.participation_type = updates.participationType;\n    if (updates.teamName !== undefined) row.team_name = updates.teamName || null;\n\n    const { error } = await client.from('tasks').update(row)"
+              )
+              # Hackathon read mapping
+              s = s.replace(
+                  "      notes: h.notes || '',\n      milestones: msByHack[h.id] || [],",
+                  "      notes: h.notes || '',\n      participationType: h.participation_type || 'Individual',\n      teamName: h.team_name || '',\n      milestones: msByHack[h.id] || [],"
+              )
+              s = s.replace(
+                  "        notes: hack.notes || '',\n      })",
+                  "        notes: hack.notes || '',\n        participation_type: hack.participationType || 'Individual',\n        team_name: hack.teamName || null,\n      })",
+                  1
+              )
+              return s
+          patch('src/services/supabaseService.ts', patch_service)
+
+          # Hackathon create form
+          def patch_hack(s):
+              s = s.replace(
+                  "  const [eventDate, setEventDate] = useState(today());",
+                  "  const [eventDate, setEventDate] = useState(today());\n  const [participationType, setParticipationType] = useState<'Individual' | 'Team'>('Individual');\n  const [teamName, setTeamName] = useState('');"
+              )
+              s = s.replace(
+                  "    setEventDate(today());\n    setSelectedMilestoneStages([]);",
+                  "    setEventDate(today());\n    setParticipationType('Individual');\n    setTeamName('');\n    setSelectedMilestoneStages([]);"
+              )
+              s = s.replace(
+                  "      eventDate,\n      milestones:",
+                  "      eventDate,\n      participationType,\n      teamName: participationType === 'Team' ? teamName.trim() : '',\n      milestones:"
+              )
+              form_re = r'(<form\\s+onSubmit=\\{handleCreate\\}[^>]*>)'
+              m = re.search(form_re, s)
+              if not m:
+                  # Try looser form matcher used by JSX formatting
+                  m = re.search(r'(<form[^>]*onSubmit=\\{handleCreate\\}[^>]*>)', s)
+              if not m:
+                  raise SystemExit('HackathonsView create form marker not found')
+              block = '''\n            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider block mb-1">Participation</label>
+                <select
+                  value={participationType}
+                  onChange={(e) => setParticipationType(e.target.value as 'Individual' | 'Team')}
+                  className="w-full h-10 px-2.5 bg-surface-container-low rounded-lg text-on-surface text-body-md outline-none focus:bg-surface-container-high transition-colors font-medium"
+                >
+                  <option value="Individual">Individual</option>
+                  <option value="Team">Team</option>
+                </select>
+              </div>
+              {participationType === 'Team' && (
+                <div>
+                  <label className="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider block mb-1">Team Name</label>
+                  <input
+                    type="text"
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    placeholder="e.g. Neural Nexus"
+                    className="w-full h-10 px-3 bg-surface-container-low rounded-lg text-on-surface text-body-md outline-none focus:bg-surface-container-high transition-colors"
+                  />
+                </div>
+              )}
+            </div>\n\n'''
+              return s[:m.end()] + block + s[m.end():]
+          patch('src/views/HackathonsView.tsx', patch_hack)
+
+          # Verify expected fields exist in all touched files.
+          for path in ['src/types/index.ts','src/components/QuickActionModal.tsx','src/services/supabaseService.ts','src/views/HackathonsView.tsx']:
+              text = Path(path).read_text()
+              if 'participationType' not in text and path != 'src/types/index.ts':
+                  raise SystemExit(f'Participation patch verification failed for {path}')
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/types/index.ts src/components/QuickActionModal.tsx src/services/supabaseService.ts src/views/HackathonsView.tsx
+          git diff --cached --quiet && { echo "No changes to commit"; exit 0; }
+          git commit -m "feat: add individual or team participation"
+          git push
