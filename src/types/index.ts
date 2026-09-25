@@ -11,6 +11,7 @@ export type TaskCategory =
 
 export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
 export type TaskStatus = 'Not Started' | 'In Progress' | 'Completed';
+export type ParticipationType = 'Individual' | 'Team';
 
 export interface Task {
   id: string;
@@ -22,6 +23,8 @@ export interface Task {
   status: TaskStatus;
   notes?: string;
   tags?: string[];
+  participationType?: ParticipationType;
+  teamName?: string;
   createdAt: string;
 }
 
@@ -83,6 +86,8 @@ export interface Hackathon {
   problemStatementStatus?: ProblemStatementStatus;
   problemStatement?: string;
   eventDate?: string;
+  participationType?: ParticipationType;
+  teamName?: string;
 }
 
 export type ExpenseCategory = 'Food' | 'Travel' | 'College' | 'Study Material' | 'Software' | 'Hackathon' | 'Shopping' | 'Entertainment' | 'Recharge' | 'Hostel / Room' | 'Other';

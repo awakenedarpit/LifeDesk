@@ -179,6 +179,8 @@ export const supabaseService = {
       status: row.status,
       notes: row.notes || '',
       tags: row.tags || [],
+      participationType: row.participation_type || 'Individual',
+      teamName: row.team_name || '',
       createdAt: row.created_at || new Date().toISOString(),
     }));
   },
@@ -199,6 +201,8 @@ export const supabaseService = {
         status: task.status || 'Not Started',
         notes: task.notes || '',
         tags: task.tags || [],
+        participation_type: task.participationType || 'Individual',
+        team_name: task.teamName || null,
       })
       .select()
       .single();
@@ -215,6 +219,8 @@ export const supabaseService = {
       status: data.status,
       notes: data.notes || '',
       tags: data.tags || [],
+      participationType: data.participation_type || 'Individual',
+      teamName: data.team_name || '',
       createdAt: data.created_at,
     };
   },
@@ -235,6 +241,8 @@ export const supabaseService = {
     if (updates.status !== undefined) row.status = updates.status;
     if (updates.notes !== undefined) row.notes = updates.notes;
     if (updates.tags !== undefined) row.tags = updates.tags;
+    if (updates.participationType !== undefined) row.participation_type = updates.participationType;
+    if (updates.teamName !== undefined) row.team_name = updates.teamName || null;
 
     const { error } = await client.from('tasks').update(row).eq('id', taskId);
     if (error) throw error;
@@ -404,6 +412,8 @@ export const supabaseService = {
       deliverable: h.deliverable || '',
       bannerImage: h.banner_image || 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80',
       notes: h.notes || '',
+      participationType: h.participation_type || 'Individual',
+      teamName: h.team_name || '',
       milestones: msByHack[h.id] || [],
     }));
   },
@@ -425,6 +435,8 @@ export const supabaseService = {
         deliverable: hack.deliverable || '',
         banner_image: hack.bannerImage || '',
         notes: hack.notes || '',
+        participation_type: hack.participationType || 'Individual',
+        team_name: hack.teamName || null,
       })
       .select()
       .single();

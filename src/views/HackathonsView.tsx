@@ -96,6 +96,8 @@ export const HackathonsView: React.FC = () => {
   const [problemStatementStatus, setProblemStatementStatus] = useState<ProblemStatementStatus>('Not Announced');
   const [problemStatement, setProblemStatement] = useState('');
   const [eventDate, setEventDate] = useState(today());
+  const [participationType, setParticipationType] = useState<'Individual' | 'Team'>('Individual');
+  const [teamName, setTeamName] = useState('');
   const [selectedMilestoneStages, setSelectedMilestoneStages] = useState<MilestoneStage[]>([]);
   const [milestoneDates, setMilestoneDates] = useState<Record<string, string>>({});
 
@@ -133,6 +135,8 @@ export const HackathonsView: React.FC = () => {
     setProblemStatementStatus('Not Announced');
     setProblemStatement('');
     setEventDate(today());
+    setParticipationType('Individual');
+    setTeamName('');
     setSelectedMilestoneStages([]);
     setMilestoneDates({});
     setBannerImage('https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80');
@@ -164,6 +168,8 @@ export const HackathonsView: React.FC = () => {
       problemStatementStatus,
       problemStatement: problemStatement.trim(),
       eventDate,
+      participationType,
+      teamName: participationType === 'Team' ? teamName.trim() : '',
       milestones: selectedMilestoneStages.map((stage, idx) => ({
         id: `ms-${Date.now()}-${idx}`,
         hackathonId: hackId,
@@ -288,6 +294,20 @@ export const HackathonsView: React.FC = () => {
           <div className="bg-surface-container-lowest border border-surface-container-high w-full max-w-md rounded-2xl p-5 shadow-2xl flex flex-col gap-3.5 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-2 border-b border-surface-container"><h3 className="font-headline-md text-base sm:text-lg text-on-surface font-bold">New Hackathon Sprint</h3><button className="w-8 h-8 rounded-full text-on-surface-variant flex items-center justify-center" onClick={() => setShowAddModal(false)}><span className="material-symbols-outlined text-[20px]">close</span></button></div>
             <form onSubmit={handleCreate} className="flex flex-col gap-3">
+  <div className="grid grid-cols-2 gap-2">
+    <div>
+      <label className="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider block mb-1">Participation</label>
+      <select value={participationType} onChange={(e) => setParticipationType(e.target.value as 'Individual' | 'Team')} className="w-full h-10 px-2.5 bg-surface-container-low rounded-lg text-on-surface text-body-md outline-none focus:bg-surface-container-high transition-colors font-medium">
+        <option value="Individual">Individual</option>
+        <option value="Team">Team</option>
+      </select>
+    </div>
+    {participationType === 'Team' && <div>
+      <label className="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider block mb-1">Team Name</label>
+      <input type="text" value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="e.g. Neural Nexus" className="w-full h-10 px-3 bg-surface-container-low rounded-lg text-on-surface text-body-md outline-none focus:bg-surface-container-high transition-colors" />
+    </div>}
+  </div>
+  
               <div><label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">Hackathon Name *</label><input required type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Smart India Hackathon" className="w-full h-11 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none" autoFocus /></div>
               <div><label className="font-label-xs text-xs text-on-surface-variant uppercase font-bold block mb-1">Track / Category</label><input type="text" value={trackName} onChange={(e) => setTrackName(e.target.value)} placeholder="e.g. AI / Web3 / Open Innovation" className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none" /></div>
 

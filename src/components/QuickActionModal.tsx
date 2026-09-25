@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { ExpenseCategory, PaymentSource, IncomeDestination, TaskCategory, TaskPriority, DeadlineCategory } from '../types';
+import { ExpenseCategory, PaymentSource, IncomeDestination, TaskCategory, TaskPriority, DeadlineCategory, ParticipationType } from '../types';
 
 export const QuickActionModal: React.FC = () => {
   const {
@@ -48,6 +48,8 @@ export const QuickActionModal: React.FC = () => {
   const [taskDeadline, setTaskDeadline] = useState(new Date().toISOString().slice(0, 16));
   const [taskNotes, setTaskNotes] = useState('');
   const [taskTags, setTaskTags] = useState('');
+  const [taskParticipationType, setTaskParticipationType] = useState<ParticipationType>('Individual');
+  const [taskTeamName, setTaskTeamName] = useState('');
 
   // Deadline form state
   const [deadlineTitle, setDeadlineTitle] = useState('');
@@ -130,11 +132,15 @@ export const QuickActionModal: React.FC = () => {
       deadline: new Date(taskDeadline).toISOString(),
       notes: taskNotes,
       tags: taskTags ? taskTags.split(',').map((t) => t.trim()).filter(Boolean) : [],
+      participationType: taskParticipationType,
+      teamName: taskParticipationType === 'Team' ? taskTeamName.trim() : '',
     });
     setTaskName('');
     setTaskDesc('');
     setTaskNotes('');
     setTaskTags('');
+    setTaskParticipationType('Individual');
+    setTaskTeamName('');
     closeModal();
   };
 
@@ -297,7 +303,21 @@ export const QuickActionModal: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex gap-2 pt-2">
+            <div className="grid grid-cols-2 gap-2">
+    <div>
+      <label className="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider block mb-1">Participation</label>
+      <select value={taskParticipationType} onChange={(e) => setTaskParticipationType(e.target.value as ParticipationType)} className="w-full h-10 px-2.5 bg-surface-container-low rounded-lg text-on-surface text-body-md outline-none focus:bg-surface-container-high transition-colors font-medium">
+        <option value="Individual">Individual</option>
+        <option value="Team">Team</option>
+      </select>
+    </div>
+    {taskParticipationType === 'Team' && <div>
+      <label className="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider block mb-1">Team Name</label>
+      <input type="text" value={taskTeamName} onChange={(e) => setTaskTeamName(e.target.value)} placeholder="e.g. Neural Nexus" className="w-full h-10 px-3 bg-surface-container-low rounded-lg text-on-surface text-body-md outline-none focus:bg-surface-container-high transition-colors" />
+    </div>}
+  </div>
+
+  <div className="flex gap-2 pt-2">
               <button
                 type="button"
                 className="flex-1 h-10 rounded-lg bg-surface-container-high text-on-surface font-label-md text-label-md hover:bg-surface-container transition-colors"
