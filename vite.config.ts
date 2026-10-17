@@ -4,7 +4,8 @@ import path from 'path';
 import { defineConfig } from 'vite';
 
 export default defineConfig(() => ({
-  base: '/LifeDesk/',
+  // The custom domain serves LifeDesk from the root path.
+  base: '/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
