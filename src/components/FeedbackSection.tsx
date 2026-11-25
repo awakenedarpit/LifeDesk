@@ -8,6 +8,7 @@ import {
   FEEDBACK_SUBJECT_MAX,
   validateFeedbackSubmission,
 } from '../utils/feedbackValidation';
+import { buildFeedbackMailtoHref, extractErrorMessage } from '../utils/feedbackEmail';
 
 const RATING_LABELS: Record<number, string> = {
   1: 'Needs work',
@@ -31,6 +32,8 @@ export const FeedbackSection: React.FC = () => {
   const [submittedConfirmation, setSubmittedConfirmation] = useState<{
     text: string;
     forwarded: boolean;
+    mailtoHref?: string;
+    recipientEmail?: string;
   } | null>(null);
   const [history, setHistory] = useState<FeedbackEntry[]>([]);
 
@@ -120,24 +123,32 @@ export const FeedbackSection: React.FC = () => {
       if (result.emailForwarded) {
         setSubmittedConfirmation({
           forwarded: true,
-          text: `Thank you! Your feedback has been saved and forwarded to ${result.recipientEmail}.`,
+          text: `Thank you! Your feedback has been saved and sent to ${result.recipientEmail}.`,
         });
         showToast(`Feedback sent to ${result.recipientEmail}.`, 'success');
       } else {
+        const mailtoHref = buildFeedbackMailtoHref({
+          category: validation.sanitized.category,
+          rating: validation.sanitized.rating,
+          subject: validation.sanitized.subject,
+          message: validation.sanitized.message,
+          recipientEmail: result.recipientEmail,
+        });
         setSubmittedConfirmation({
           forwarded: false,
-          text: `Thank you! Your feedback has been saved. ${
-            result.emailNote ||
-            `Email forwarding to ${result.recipientEmail} requires RESEND_API_KEY in server or Edge Function secrets.`
-          }`,
+          mailtoHref,
+          recipientEmail: result.recipientEmail,
+          text: result.dbSaved
+            ? 'Thank you! Your feedback has been saved to your account.'
+            : 'Thank you! Your feedback has been saved on this device.',
         });
-        showToast('Feedback saved. Configure RESEND_API_KEY to forward emails.', 'info');
+        showToast('Feedback submitted and saved!', 'success');
       }
     } catch (err: unknown) {
-      const errMsg =
-        err instanceof Error && err.message
-          ? err.message
-          : 'Could not submit feedback right now. Please try again.';
+      const errMsg = extractErrorMessage(
+        err,
+        'Could not submit feedback right now. Please try again.'
+      );
       setFormError(errMsg);
       showToast(errMsg, 'error');
     } finally {
@@ -179,16 +190,23 @@ export const FeedbackSection: React.FC = () => {
       {submittedConfirmation && (
         <div
           role="status"
-          className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
-            submittedConfirmation.forwarded
-              ? 'bg-surface-container border-primary/40 text-on-surface'
-              : 'bg-surface-container-low border-outline-variant text-on-surface'
-          }`}
+          className="p-3 rounded-xl border bg-surface-container border-primary/40 text-on-surface text-xs flex items-center justify-between gap-3 flex-wrap"
         >
-          <span className="material-symbols-outlined text-primary-ink text-[18px] flex-shrink-0">
-            {submittedConfirmation.forwarded ? 'check_circle' : 'info'}
-          </span>
-          <span className="font-medium">{submittedConfirmation.text}</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="material-symbols-outlined text-primary-ink text-[18px] flex-shrink-0">
+              check_circle
+            </span>
+            <span className="font-medium">{submittedConfirmation.text}</span>
+          </div>
+          {!submittedConfirmation.forwarded && submittedConfirmation.mailtoHref && (
+            <a
+              href={submittedConfirmation.mailtoHref}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container-lowest border border-outline-variant text-primary-ink font-semibold hover:bg-surface-container-low transition-colors whitespace-nowrap"
+            >
+              <span className="material-symbols-outlined text-[15px]">mail</span>
+              <span>Also send via Email</span>
+            </a>
+          )}
         </div>
       )}
 

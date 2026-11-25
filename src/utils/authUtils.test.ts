@@ -106,6 +106,21 @@ test('mapAuthError maps common Supabase Auth error strings gracefully', () => {
   assert.equal(mapAuthError(new Error('Email rate limit exceeded')).code, 'rate_limited');
 });
 
+test('mapAuthError maps Google OAuth specific errors gracefully', () => {
+  assert.equal(
+    mapAuthError(new Error('Unsupported provider: provider is not enabled')).code,
+    'oauth_provider_disabled'
+  );
+  assert.equal(
+    mapAuthError(new Error('Pop-up was blocked by your browser')).code,
+    'popup_blocked'
+  );
+  assert.equal(
+    mapAuthError(new Error('access_denied')).code,
+    'oauth_cancelled'
+  );
+});
+
 test('isDuplicateSignupResponse detects obfuscated existing user with empty identities', () => {
   assert.equal(isDuplicateSignupResponse({ user: { identities: [] }, session: null }), true);
   assert.equal(isDuplicateSignupResponse({ user: { identities: [{ id: '1' }] }, session: null }), false);

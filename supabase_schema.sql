@@ -247,7 +247,11 @@ BEGIN
   INSERT INTO public.profiles (id, full_name, email, phone, college, course, year, semester, bio, avatar_url)
   VALUES (
     NEW.id,
-    COALESCE(NULLIF(NEW.raw_user_meta_data->>'full_name', ''), SPLIT_PART(NEW.email, '@', 1)),
+    COALESCE(
+      NULLIF(NEW.raw_user_meta_data->>'full_name', ''),
+      NULLIF(NEW.raw_user_meta_data->>'name', ''),
+      SPLIT_PART(NEW.email, '@', 1)
+    ),
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'phone', ''),
     COALESCE(NEW.raw_user_meta_data->>'college', ''),
@@ -255,7 +259,11 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'year', '1st Year'),
     COALESCE(NEW.raw_user_meta_data->>'semester', 'Sem 1'),
     COALESCE(NEW.raw_user_meta_data->>'bio', ''),
-    COALESCE(NEW.raw_user_meta_data->>'avatar_url', '')
+    COALESCE(
+      NULLIF(NEW.raw_user_meta_data->>'avatar_url', ''),
+      NULLIF(NEW.raw_user_meta_data->>'picture', ''),
+      ''
+    )
   )
   ON CONFLICT (id) DO UPDATE
   SET email = EXCLUDED.email,

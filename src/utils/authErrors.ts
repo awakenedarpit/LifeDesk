@@ -7,6 +7,9 @@ export type AuthErrorCode =
   | 'network_error'
   | 'invalid_reset_token'
   | 'not_configured'
+  | 'oauth_provider_disabled'
+  | 'oauth_cancelled'
+  | 'popup_blocked'
   | 'unknown';
 
 export interface MappedAuthError {
@@ -38,6 +41,42 @@ export function mapAuthError(err: unknown): MappedAuthError {
     return {
       code: 'not_configured',
       message: 'Supabase authentication is not configured yet. Connect your Supabase project URL and anon key below.',
+    };
+  }
+
+  if (
+    normalized.includes('provider is not enabled') ||
+    normalized.includes('unsupported provider')
+  ) {
+    return {
+      code: 'oauth_provider_disabled',
+      message:
+        'Google sign-in is not enabled in your Supabase project yet. Enable Google under Authentication → Providers in your Supabase Dashboard.',
+    };
+  }
+
+  if (
+    normalized.includes('popup was blocked') ||
+    normalized.includes('pop-up was blocked') ||
+    normalized.includes('allow popups') ||
+    normalized.includes('allow pop-ups')
+  ) {
+    return {
+      code: 'popup_blocked',
+      message:
+        'Pop-up window was blocked by your browser. Allow pop-ups for this site and try Google sign-in again.',
+    };
+  }
+
+  if (
+    normalized.includes('access_denied') ||
+    normalized.includes('oauth cancelled') ||
+    normalized.includes('sign-in was cancelled') ||
+    normalized.includes('closed the sign-in window')
+  ) {
+    return {
+      code: 'oauth_cancelled',
+      message: 'Google sign-in was cancelled. You can try again anytime.',
     };
   }
 

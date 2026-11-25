@@ -18,7 +18,20 @@ import {
   FeedbackCategory,
   FeedbackEntry,
 } from '../types';
-import { DEFAULT_FEEDBACK_RECIPIENT_EMAIL } from '../utils/feedbackEmail';
+import {
+  DEFAULT_FEEDBACK_RECIPIENT_EMAIL,
+  extractErrorMessage,
+  isMissingFeedbackTableError,
+} from '../utils/feedbackEmail';
+
+const isEmbeddedInIframe = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+};
 
 export const supabaseService = {
   // ==========================================
@@ -74,6 +87,147 @@ export const supabaseService = {
 
     if (error) throw error;
     return data;
+  },
+
+  async signInWithGoogle() {
+    const client = getSupabaseClient();
+    if (!client) throw new Error('Supabase client is not configured.');
+
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const inIframe = isEmbeddedInIframe();
+
+    const { data, error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        skipBrowserRedirect: inIframe,
+        queryParams: {
+          prompt: 'select_account',
+        },
+      },
+    });
+
+    if (error) throw error;
+
+    // Top-level browser tab: Supabase handles redirect automatically.
+    if (!inIframe) {
+      return { redirected: true as const, session: null, user: null };
+    }
+
+    if (!data?.url) {
+      throw new Error('Could not start Google authentication. Please try again.');
+    }
+
+    const width = 540;
+    const height = 660;
+    const left = Math.max(0, Math.round(window.screenX + (window.outerWidth - width) / 2));
+    const top = Math.max(0, Math.round(window.screenY + (window.outerHeight - height) / 2));
+
+    const popup = window.open(
+      data.url,
+      'lifedesk_google_oauth',
+      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+    );
+
+    if (!popup) {
+      throw new Error('Pop-up was blocked by your browser. Allow pop-ups for this site and try again.');
+    }
+
+    const callbackPayload = await new Promise<{
+      code?: string;
+      accessToken?: string;
+      refreshToken?: string;
+      error?: string;
+      errorDescription?: string;
+    }>((resolve, reject) => {
+      let settled = false;
+
+      const cleanup = () => {
+        window.removeEventListener('message', onMessage);
+        window.clearInterval(pollTimer);
+        window.clearTimeout(timeoutTimer);
+      };
+
+      const onMessage = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        const msg = event.data as Record<string, unknown> | null;
+        if (!msg || msg.type !== 'LIFEDESK_OAUTH_CALLBACK') return;
+
+        settled = true;
+        cleanup();
+        resolve({
+          code: typeof msg.code === 'string' ? msg.code : undefined,
+          accessToken: typeof msg.accessToken === 'string' ? msg.accessToken : undefined,
+          refreshToken: typeof msg.refreshToken === 'string' ? msg.refreshToken : undefined,
+          error: typeof msg.error === 'string' ? msg.error : undefined,
+          errorDescription:
+            typeof msg.errorDescription === 'string' ? msg.errorDescription : undefined,
+        });
+      };
+
+      const pollTimer = window.setInterval(() => {
+        if (popup.closed && !settled) {
+          settled = true;
+          cleanup();
+          reject(new Error('Google sign-in was cancelled because you closed the sign-in window.'));
+        }
+      }, 450);
+
+      const timeoutTimer = window.setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          cleanup();
+          try {
+            popup.close();
+          } catch {
+            // Ignore cross-origin close error
+          }
+          reject(new Error('Google sign-in timed out. Please try again.'));
+        }
+      }, 180_000);
+
+      window.addEventListener('message', onMessage);
+    });
+
+    if (callbackPayload.error || callbackPayload.errorDescription) {
+      throw new Error(callbackPayload.errorDescription || callbackPayload.error || 'OAuth cancelled');
+    }
+
+    if (callbackPayload.code) {
+      const { data: sessionData, error: exchangeError } =
+        await client.auth.exchangeCodeForSession(callbackPayload.code);
+      if (exchangeError) throw exchangeError;
+      return {
+        redirected: false as const,
+        session: sessionData.session,
+        user: sessionData.user,
+      };
+    }
+
+    if (callbackPayload.accessToken && callbackPayload.refreshToken) {
+      const { data: sessionData, error: setSessionError } = await client.auth.setSession({
+        access_token: callbackPayload.accessToken,
+        refresh_token: callbackPayload.refreshToken,
+      });
+      if (setSessionError) throw setSessionError;
+      return {
+        redirected: false as const,
+        session: sessionData.session,
+        user: sessionData.user,
+      };
+    }
+
+    // Fallback: verify whether Supabase already synced the session in storage
+    const { data: existing } = await client.auth.getSession();
+    if (existing.session?.user) {
+      return {
+        redirected: false as const,
+        session: existing.session,
+        user: existing.session.user,
+      };
+    }
+
+    throw new Error('Google sign-in did not return a valid session. Please try again.');
   },
 
   async signOut() {
@@ -807,6 +961,7 @@ export const supabaseService = {
     }
   ): Promise<{
     entry: FeedbackEntry;
+    dbSaved: boolean;
     emailForwarded: boolean;
     recipientEmail: string;
     emailNote?: string;
@@ -824,77 +979,107 @@ export const supabaseService = {
     };
 
     let savedEntry = fallbackEntry;
+    let dbSaved = false;
     let accessToken = '';
     let edgeErrorNote = '';
+    let dbFallbackNote = '';
 
     if (client) {
       const { data: sessionData } = await client.auth.getSession();
-      accessToken = sessionData.session?.access_token || '';
+      let activeSession = sessionData.session;
 
-      const { data, error } = await client
-        .from('feedback')
-        .insert({
-          user_id: userId,
-          category: payload.category,
-          rating: payload.rating,
-          subject: payload.subject,
-          message: payload.message,
-        })
-        .select('id, user_id, category, rating, subject, message, created_at')
-        .single();
-
-      if (error) {
-        if (
-          error.code !== '42P01' &&
-          !error.message?.includes('relation "public.feedback" does not exist')
-        ) {
-          throw error;
+      // Refresh session if expired or missing access token
+      if (!activeSession?.access_token) {
+        const refreshed = await client.auth.refreshSession().catch(() => null);
+        if (refreshed?.data?.session) {
+          activeSession = refreshed.data.session;
         }
-      } else if (data) {
-        savedEntry = {
-          id: data.id,
-          userId: data.user_id,
-          category: (data.category || payload.category) as FeedbackCategory,
-          rating: Number(data.rating) || payload.rating,
-          subject: data.subject || payload.subject,
-          message: data.message || payload.message,
-          createdAt: data.created_at || fallbackEntry.createdAt,
-        };
       }
 
-      // 1. Try Supabase Edge Function (send-feedback-email) first
-      try {
-        const { data: fnData, error: fnError } = await client.functions.invoke(
-          'send-feedback-email',
-          {
-            body: {
+      accessToken = activeSession?.access_token || '';
+      const effectiveUserId = activeSession?.user?.id || userId;
+
+      if (effectiveUserId) {
+        try {
+          const { data, error } = await client
+            .from('feedback')
+            .insert({
+              user_id: effectiveUserId,
               category: payload.category,
               rating: payload.rating,
               subject: payload.subject,
               message: payload.message,
-            },
-          }
-        );
+            })
+            .select('id, user_id, category, rating, subject, message, created_at')
+            .maybeSingle();
 
-        if (!fnError && fnData?.success) {
-          return {
-            entry: savedEntry,
-            emailForwarded: true,
-            recipientEmail: fnData.to || targetRecipient,
-          };
-        }
-
-        if (fnError && typeof fnError === 'object' && 'context' in fnError) {
-          const ctx = (fnError as { context?: Response }).context;
-          if (ctx && typeof ctx.json === 'function') {
-            const errJson = (await ctx.json().catch(() => null)) as { error?: string } | null;
-            if (errJson?.error) {
-              edgeErrorNote = errJson.error;
+          if (error) {
+            if (isMissingFeedbackTableError(error)) {
+              dbFallbackNote =
+                'Feedback table is not initialized in Supabase yet (run supabase_schema.sql to enable cloud feedback history).';
+            } else {
+              console.warn('Supabase feedback insert warning:', extractErrorMessage(error));
+              dbFallbackNote = 'Saved locally on this device.';
+            }
+          } else {
+            dbSaved = true;
+            if (data) {
+              savedEntry = {
+                id: data.id,
+                userId: data.user_id,
+                category: (data.category || payload.category) as FeedbackCategory,
+                rating: Number(data.rating) || payload.rating,
+                subject: data.subject || payload.subject,
+                message: data.message || payload.message,
+                createdAt: data.created_at || fallbackEntry.createdAt,
+              };
             }
           }
+        } catch (dbErr) {
+          console.warn('Supabase feedback insert fallback:', extractErrorMessage(dbErr));
+          dbFallbackNote = 'Saved locally on this device.';
         }
-      } catch {
-        // Fall through to same-origin /api/feedback-email relay
+      }
+
+      // 1. Try Supabase Edge Function (send-feedback-email) first
+      if (accessToken) {
+        try {
+          const { data: fnData, error: fnError } = await client.functions.invoke(
+            'send-feedback-email',
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+              body: {
+                category: payload.category,
+                rating: payload.rating,
+                subject: payload.subject,
+                message: payload.message,
+              },
+            }
+          );
+
+          if (!fnError && fnData?.success) {
+            return {
+              entry: savedEntry,
+              dbSaved,
+              emailForwarded: true,
+              recipientEmail: fnData.to || targetRecipient,
+            };
+          }
+
+          if (fnError && typeof fnError === 'object' && 'context' in fnError) {
+            const ctx = (fnError as { context?: Response }).context;
+            if (ctx && typeof ctx.json === 'function') {
+              const errJson = (await ctx.json().catch(() => null)) as { error?: string } | null;
+              if (errJson?.error) {
+                edgeErrorNote = errJson.error;
+              }
+            }
+          }
+        } catch {
+          // Fall through to same-origin /api/feedback-email relay
+        }
       }
     }
 
@@ -923,6 +1108,7 @@ export const supabaseService = {
         if (res.ok && json?.forwarded) {
           return {
             entry: savedEntry,
+            dbSaved,
             emailForwarded: true,
             recipientEmail: json.to || targetRecipient,
           };
@@ -931,6 +1117,7 @@ export const supabaseService = {
         if (json?.error) {
           return {
             entry: savedEntry,
+            dbSaved,
             emailForwarded: false,
             recipientEmail: json.to || targetRecipient,
             emailNote: json.error,
@@ -943,10 +1130,12 @@ export const supabaseService = {
 
     return {
       entry: savedEntry,
+      dbSaved,
       emailForwarded: false,
       recipientEmail: targetRecipient,
       emailNote:
         edgeErrorNote ||
+        dbFallbackNote ||
         `Email forwarding to ${targetRecipient} requires RESEND_API_KEY in server or Supabase Edge Function secrets.`,
     };
   },

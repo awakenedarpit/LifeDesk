@@ -81,6 +81,7 @@ export interface FeedbackEmailContext {
   senderEmail?: string;
   senderId?: string;
   fromEmail?: string;
+  recipientEmail?: string;
   submittedAt?: string;
 }
 
@@ -91,6 +92,71 @@ export interface ResendEmailRequestPayload {
   subject: string;
   html: string;
   text: string;
+}
+
+export function extractErrorMessage(
+  err: unknown,
+  fallback = 'Could not submit feedback right now. Please try again.'
+): string {
+  if (typeof err === 'string' && err.trim()) {
+    return err.trim();
+  }
+  if (err instanceof Error && err.message.trim()) {
+    return err.message.trim();
+  }
+  if (typeof err === 'object' && err !== null) {
+    const record = err as Record<string, unknown>;
+    const candidate =
+      (typeof record.message === 'string' && record.message.trim()) ||
+      (typeof record.error_description === 'string' && record.error_description.trim()) ||
+      (typeof record.error === 'string' && record.error.trim()) ||
+      (typeof record.details === 'string' && record.details.trim()) ||
+      '';
+    if (candidate) {
+      return candidate;
+    }
+  }
+  return fallback;
+}
+
+export function isMissingFeedbackTableError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const record = err as Record<string, unknown>;
+  const code = typeof record.code === 'string' ? record.code.toUpperCase() : '';
+  const message = extractErrorMessage(err, '').toLowerCase();
+
+  return (
+    code === '42P01' ||
+    code === 'PGRST205' ||
+    code === 'PGRST204' ||
+    message.includes('does not exist') ||
+    message.includes('schema cache') ||
+    message.includes('could not find the table') ||
+    message.includes('relation "public.feedback"')
+  );
+}
+
+export function buildFeedbackMailtoHref(input: {
+  category: FeedbackCategory;
+  rating: number;
+  subject: string;
+  message: string;
+  recipientEmail?: string;
+}): string {
+  const recipient = isValidEmailAddress(input.recipientEmail)
+    ? String(input.recipientEmail).trim()
+    : DEFAULT_FEEDBACK_RECIPIENT_EMAIL;
+  const safeSubject = sanitizeHeaderText(
+    `[LifeDesk Feedback • ${input.category}] ${input.subject}`
+  );
+  const body = [
+    `Category: ${input.category}`,
+    `Rating: ${input.rating}/5`,
+    '',
+    input.message,
+  ].join('\n');
+
+  return `mailto:${recipient}?subject=${encodeURIComponent(safeSubject)}&body=${encodeURIComponent(body)}`;
 }
 
 export function buildFeedbackEmailPayload(
@@ -109,6 +175,9 @@ export function buildFeedbackEmailPayload(
 
   const { category, rating, subject, message } = validation.sanitized;
   const from = sanitizeHeaderText(input.fromEmail || '') || DEFAULT_FEEDBACK_FROM_EMAIL;
+  const recipient = isValidEmailAddress(input.recipientEmail)
+    ? String(input.recipientEmail).trim()
+    : DEFAULT_FEEDBACK_RECIPIENT_EMAIL;
   const safeSenderName = sanitizeHeaderText(input.senderName || '') || 'LifeDesk Student';
   const candidateSenderEmail = sanitizeHeaderText(input.senderEmail || '');
   const validReplyTo = isValidEmailAddress(candidateSenderEmail) ? candidateSenderEmail : undefined;
@@ -158,7 +227,7 @@ export function buildFeedbackEmailPayload(
 
   const payload: ResendEmailRequestPayload = {
     from,
-    to: [DEFAULT_FEEDBACK_RECIPIENT_EMAIL],
+    to: [recipient],
     subject: emailSubject,
     html,
     text: textLines,

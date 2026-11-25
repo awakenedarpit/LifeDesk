@@ -2,8 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildFeedbackEmailPayload,
+  buildFeedbackMailtoHref,
   DEFAULT_FEEDBACK_RECIPIENT_EMAIL,
   escapeHtml,
+  extractErrorMessage,
+  isMissingFeedbackTableError,
   isValidEmailAddress,
   sanitizeHeaderText,
 } from './feedbackEmail.ts';
@@ -60,4 +63,40 @@ test('buildFeedbackEmailPayload drops invalid reply_to addresses', () => {
     assert.deepEqual(result.payload.to, ['raj2010arpit@gmail.com']);
     assert.equal(result.payload.reply_to, undefined);
   }
+});
+
+test('extractErrorMessage reads plain PostgREST error objects and Error instances', () => {
+  assert.equal(
+    extractErrorMessage({
+      code: 'PGRST205',
+      message: "Could not find the table 'public.feedback' in the schema cache",
+    }),
+    "Could not find the table 'public.feedback' in the schema cache"
+  );
+  assert.equal(extractErrorMessage(new Error('Network down')), 'Network down');
+  assert.equal(extractErrorMessage(null, 'Fallback msg'), 'Fallback msg');
+});
+
+test('isMissingFeedbackTableError detects PostgREST schema cache and Postgres 42P01 codes', () => {
+  assert.equal(
+    isMissingFeedbackTableError({
+      code: 'PGRST205',
+      message: "Could not find the table 'public.feedback' in the schema cache",
+    }),
+    true
+  );
+  assert.equal(isMissingFeedbackTableError({ code: '42P01', message: 'relation does not exist' }), true);
+  assert.equal(isMissingFeedbackTableError({ code: '23505', message: 'duplicate key' }), false);
+});
+
+test('buildFeedbackMailtoHref encodes subject and body with safe recipient', () => {
+  const href = buildFeedbackMailtoHref({
+    category: 'Feature Request',
+    rating: 5,
+    subject: 'Add Google Sign-Up',
+    message: 'Would love one-click Google onboarding.',
+    recipientEmail: 'invalid\r\n@bad',
+  });
+  assert.equal(href.startsWith('mailto:raj2010arpit@gmail.com?subject='), true);
+  assert.match(href, /Add%20Google%20Sign-Up/);
 });

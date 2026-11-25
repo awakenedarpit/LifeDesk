@@ -59,6 +59,7 @@ interface AppContextType {
   setVerificationPendingEmail: (email: string | null) => void;
   login: (email: string, pass: string) => Promise<boolean>;
   signup: (email: string, pass: string, name: string, college?: string) => Promise<{ ok: boolean; needsVerification: boolean }>;
+  signInWithGoogle: () => Promise<boolean>;
   resendVerification: (email: string) => Promise<boolean>;
   forgotPassword: (email: string) => Promise<boolean>;
   resetPassword: (token: string, newPass: string) => Promise<boolean>;
@@ -358,12 +359,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabaseService.getTransactions(userId),
         ]);
 
+        const metaFullName =
+          (fallbackAuthUser?.user_metadata?.full_name as string | undefined) ||
+          (fallbackAuthUser?.user_metadata?.name as string | undefined);
+        const metaAvatarUrl =
+          (fallbackAuthUser?.user_metadata?.avatar_url as string | undefined) ||
+          (fallbackAuthUser?.user_metadata?.picture as string | undefined) ||
+          '';
+
         if (dbProfile) {
-          setUser(dbProfile);
-          storage.setProfile(dbProfile);
+          const mergedProfile: UserProfile = {
+            ...dbProfile,
+            fullName:
+              dbProfile.fullName && dbProfile.fullName !== 'Student'
+                ? dbProfile.fullName
+                : metaFullName || dbProfile.fullName || 'Student',
+            avatarUrl: dbProfile.avatarUrl || metaAvatarUrl,
+          };
+          setUser(mergedProfile);
+          storage.setProfile(mergedProfile);
         } else {
           const metaName =
-            (fallbackAuthUser?.user_metadata?.full_name as string | undefined) ||
+            metaFullName ||
             fallbackAuthUser?.email?.split('@')[0] ||
             'Student';
           const fallbackProfile: UserProfile = {
@@ -372,6 +389,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             fullName: metaName,
             email: fallbackAuthUser?.email || '',
             college: (fallbackAuthUser?.user_metadata?.college as string | undefined) || '',
+            avatarUrl: metaAvatarUrl,
           };
           setUser(fallbackProfile);
           storage.setProfile(fallbackProfile);
@@ -430,18 +448,59 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       setIsLoading(true);
       const searchParams = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
       const code = searchParams.get('code');
+      const oauthError =
+        searchParams.get('error_description') ||
+        hashParams.get('error_description') ||
+        searchParams.get('error') ||
+        hashParams.get('error');
       const recovery = isRecoveryUrl(window.location.search, window.location.hash);
 
-      if (code) {
+      // Static-host fallback: if /auth/callback opened inside an OAuth popup, relay back to opener
+      if (
+        window.location.pathname.replace(/\/+$/, '') === '/auth/callback' &&
+        window.opener &&
+        !window.opener.closed
+      ) {
+        const relayPayload = {
+          type: 'LIFEDESK_OAUTH_CALLBACK',
+          code: code || '',
+          accessToken: hashParams.get('access_token') || '',
+          refreshToken: hashParams.get('refresh_token') || '',
+          error: searchParams.get('error') || hashParams.get('error') || '',
+          errorDescription:
+            searchParams.get('error_description') ||
+            hashParams.get('error_description') ||
+            '',
+        };
         try {
-          await supabaseService.exchangeCodeForSession(code);
-        } catch (exchangeErr) {
-          setAuthError(mapAuthError(exchangeErr));
+          window.opener.postMessage(relayPayload, window.location.origin);
+        } catch {
+          window.opener.postMessage(relayPayload, '*');
+        }
+        window.close();
+        return;
+      }
+
+      if (oauthError) {
+        setAuthError(mapAuthError(new Error(oauthError)));
+        if (window.location.search || window.location.hash) {
+          window.history.replaceState(null, '', AUTH_ROUTES.login);
         }
       }
 
       if (recovery) {
+        if (code) {
+          const { data: existing } = await client.auth.getSession();
+          if (!existing.session) {
+            try {
+              await supabaseService.exchangeCodeForSession(code);
+            } catch (exchangeErr) {
+              setAuthError(mapAuthError(exchangeErr));
+            }
+          }
+        }
         setIsPasswordRecovery(true);
         setIsAuthenticated(false);
         setAuthModeState('reset');
@@ -449,11 +508,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return;
       }
 
-      const {
+      let {
         data: { session },
       } = await client.auth.getSession();
 
+      if (!session && code) {
+        try {
+          const exchanged = await supabaseService.exchangeCodeForSession(code);
+          session = exchanged.session;
+        } catch (exchangeErr) {
+          setAuthError(mapAuthError(exchangeErr));
+        }
+      }
+
       if (session?.user) {
+        if (code || hashParams.has('access_token')) {
+          window.history.replaceState(null, '', PROTECTED_ROUTES.dashboard);
+        }
         setIsAuthenticated(true);
         localStorage.setItem('lifedesk_auth', 'authenticated');
         await loadUserData(session.user.id, session.user);
@@ -638,6 +709,49 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setAuthError(mapped);
       showToast(mapped.message, 'error');
       return { ok: false, needsVerification: false };
+    }
+  };
+
+  const signInWithGoogle = async (): Promise<boolean> => {
+    setAuthError(null);
+    const client = getSupabaseClient();
+    if (!client) {
+      const mapped = mapAuthError(new Error('Supabase client is not configured.'));
+      setAuthError(mapped);
+      showToast(mapped.message, 'error');
+      return false;
+    }
+
+    try {
+      const result = await supabaseService.signInWithGoogle();
+      if (result.redirected) {
+        return true;
+      }
+
+      const authUser = result.user || result.session?.user;
+      if (!authUser || !result.session) {
+        throw new Error('Google sign-in did not create a valid session. Please try again.');
+      }
+
+      setIsPasswordRecovery(false);
+      setIsAuthenticated(true);
+      setVerificationPendingEmail(null);
+      localStorage.setItem('lifedesk_auth', 'authenticated');
+      await loadUserData(authUser.id, authUser);
+      setActiveTabState('dashboard');
+      syncPathToRoute(PROTECTED_ROUTES.dashboard, true);
+      const displayName =
+        (authUser.user_metadata?.full_name as string | undefined) ||
+        (authUser.user_metadata?.name as string | undefined) ||
+        authUser.email?.split('@')[0] ||
+        'Student';
+      showToast(`Welcome to LifeDesk, ${displayName}!`, 'success');
+      return true;
+    } catch (err: unknown) {
+      const mapped = mapAuthError(err);
+      setAuthError(mapped);
+      showToast(mapped.message, 'error');
+      return false;
     }
   };
 
@@ -1558,6 +1672,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setVerificationPendingEmail,
         login,
         signup,
+        signInWithGoogle,
         resendVerification,
         forgotPassword,
         logout,
