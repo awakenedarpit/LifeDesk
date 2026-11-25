@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { UserAvatar } from '../components/UserAvatar';
+import { FeedbackSection } from '../components/FeedbackSection';
 import { AppTheme } from '../types';
 
 export const ProfileSettingsView: React.FC = () => {
@@ -511,6 +512,9 @@ export const ProfileSettingsView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Student Feedback Form */}
+      <FeedbackSection />
 
       {/* Change Password Modal */}
       {passwordModalOpen && (

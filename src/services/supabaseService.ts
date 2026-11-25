@@ -15,7 +15,10 @@ import {
   HackathonMilestone,
   Transaction,
   MilestoneStage,
+  FeedbackCategory,
+  FeedbackEntry,
 } from '../types';
+import { DEFAULT_FEEDBACK_RECIPIENT_EMAIL } from '../utils/feedbackEmail';
 
 export const supabaseService = {
   // ==========================================
@@ -761,6 +764,191 @@ export const supabaseService = {
     if (userId) query = query.eq('user_id', userId);
     const { error } = await query;
     if (error) throw error;
+  },
+
+  // ==========================================
+  // FEEDBACK
+  // ==========================================
+  async getFeedbackHistory(userId: string): Promise<FeedbackEntry[]> {
+    const client = getSupabaseClient();
+    if (!client) return [];
+
+    const { data, error } = await client
+      .from('feedback')
+      .select('id, user_id, category, rating, subject, message, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) {
+      return [];
+    }
+
+    return (data || []).map((row) => ({
+      id: row.id,
+      userId: row.user_id,
+      category: (row.category || 'General') as FeedbackCategory,
+      rating: Number(row.rating) || 5,
+      subject: row.subject || '',
+      message: row.message || '',
+      createdAt: row.created_at || new Date().toISOString(),
+    }));
+  },
+
+  async submitFeedback(
+    userId: string,
+    payload: {
+      category: FeedbackCategory;
+      rating: number;
+      subject: string;
+      message: string;
+      senderName?: string;
+      senderEmail?: string;
+    }
+  ): Promise<{
+    entry: FeedbackEntry;
+    emailForwarded: boolean;
+    recipientEmail: string;
+    emailNote?: string;
+  }> {
+    const client = getSupabaseClient();
+    const targetRecipient = DEFAULT_FEEDBACK_RECIPIENT_EMAIL;
+    const fallbackEntry: FeedbackEntry = {
+      id: `fb-${Date.now()}`,
+      userId,
+      category: payload.category,
+      rating: payload.rating,
+      subject: payload.subject,
+      message: payload.message,
+      createdAt: new Date().toISOString(),
+    };
+
+    let savedEntry = fallbackEntry;
+    let accessToken = '';
+    let edgeErrorNote = '';
+
+    if (client) {
+      const { data: sessionData } = await client.auth.getSession();
+      accessToken = sessionData.session?.access_token || '';
+
+      const { data, error } = await client
+        .from('feedback')
+        .insert({
+          user_id: userId,
+          category: payload.category,
+          rating: payload.rating,
+          subject: payload.subject,
+          message: payload.message,
+        })
+        .select('id, user_id, category, rating, subject, message, created_at')
+        .single();
+
+      if (error) {
+        if (
+          error.code !== '42P01' &&
+          !error.message?.includes('relation "public.feedback" does not exist')
+        ) {
+          throw error;
+        }
+      } else if (data) {
+        savedEntry = {
+          id: data.id,
+          userId: data.user_id,
+          category: (data.category || payload.category) as FeedbackCategory,
+          rating: Number(data.rating) || payload.rating,
+          subject: data.subject || payload.subject,
+          message: data.message || payload.message,
+          createdAt: data.created_at || fallbackEntry.createdAt,
+        };
+      }
+
+      // 1. Try Supabase Edge Function (send-feedback-email) first
+      try {
+        const { data: fnData, error: fnError } = await client.functions.invoke(
+          'send-feedback-email',
+          {
+            body: {
+              category: payload.category,
+              rating: payload.rating,
+              subject: payload.subject,
+              message: payload.message,
+            },
+          }
+        );
+
+        if (!fnError && fnData?.success) {
+          return {
+            entry: savedEntry,
+            emailForwarded: true,
+            recipientEmail: fnData.to || targetRecipient,
+          };
+        }
+
+        if (fnError && typeof fnError === 'object' && 'context' in fnError) {
+          const ctx = (fnError as { context?: Response }).context;
+          if (ctx && typeof ctx.json === 'function') {
+            const errJson = (await ctx.json().catch(() => null)) as { error?: string } | null;
+            if (errJson?.error) {
+              edgeErrorNote = errJson.error;
+            }
+          }
+        }
+      } catch {
+        // Fall through to same-origin /api/feedback-email relay
+      }
+    }
+
+    // 2. Fall back to same-origin Express /api/feedback-email route when available
+    if (typeof window !== 'undefined' && accessToken) {
+      try {
+        const res = await fetch('/api/feedback-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            category: payload.category,
+            rating: payload.rating,
+            subject: payload.subject,
+            message: payload.message,
+            senderName: payload.senderName,
+            senderEmail: payload.senderEmail,
+          }),
+        });
+        const json = (await res.json().catch(() => null)) as
+          | { forwarded?: boolean; to?: string; error?: string }
+          | null;
+
+        if (res.ok && json?.forwarded) {
+          return {
+            entry: savedEntry,
+            emailForwarded: true,
+            recipientEmail: json.to || targetRecipient,
+          };
+        }
+
+        if (json?.error) {
+          return {
+            entry: savedEntry,
+            emailForwarded: false,
+            recipientEmail: json.to || targetRecipient,
+            emailNote: json.error,
+          };
+        }
+      } catch {
+        // Ignore network/static-host absence of /api/feedback-email
+      }
+    }
+
+    return {
+      entry: savedEntry,
+      emailForwarded: false,
+      recipientEmail: targetRecipient,
+      emailNote:
+        edgeErrorNote ||
+        `Email forwarding to ${targetRecipient} requires RESEND_API_KEY in server or Supabase Edge Function secrets.`,
+    };
   },
 
   // ==========================================

@@ -131,6 +131,17 @@ CREATE TABLE IF NOT EXISTS public.learning_items (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 8. Student Feedback Table
+CREATE TABLE IF NOT EXISTS public.feedback (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  category TEXT NOT NULL DEFAULT 'General' CHECK (category IN ('Feature Request', 'Bug Report', 'UI / UX', 'General')),
+  rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  subject TEXT NOT NULL,
+  message TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ========================================================
 -- Row Level Security (RLS) - Complete User Data Isolation
 -- ========================================================
@@ -141,6 +152,7 @@ ALTER TABLE public.hackathons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.hackathon_milestones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.learning_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.feedback ENABLE ROW LEVEL SECURITY;
 
 -- Profiles Policies
 DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
@@ -216,6 +228,13 @@ CREATE POLICY "Users can manage own transactions"
 DROP POLICY IF EXISTS "Users can manage own learning items" ON public.learning_items;
 CREATE POLICY "Users can manage own learning items"
   ON public.learning_items FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- Feedback Policies
+DROP POLICY IF EXISTS "Users can manage own feedback" ON public.feedback;
+CREATE POLICY "Users can manage own feedback"
+  ON public.feedback FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 

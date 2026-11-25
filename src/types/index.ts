@@ -144,3 +144,15 @@ export interface LearningItem {
   learnedAt?: string;
   updatedAt: string;
 }
+
+export type FeedbackCategory = 'Feature Request' | 'Bug Report' | 'UI / UX' | 'General';
+
+export interface FeedbackEntry {
+  id: string;
+  userId: string;
+  category: FeedbackCategory;
+  rating: number;
+  subject: string;
+  message: string;
+  createdAt: string;
+}

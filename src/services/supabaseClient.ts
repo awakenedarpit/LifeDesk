@@ -225,6 +225,16 @@ CREATE TABLE IF NOT EXISTS public.learning_items (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS public.feedback (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  category TEXT NOT NULL DEFAULT 'General' CHECK (category IN ('Feature Request', 'Bug Report', 'UI / UX', 'General')),
+  rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  subject TEXT NOT NULL,
+  message TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
@@ -232,6 +242,7 @@ ALTER TABLE public.hackathons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.hackathon_milestones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.learning_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.feedback ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
@@ -268,6 +279,9 @@ CREATE POLICY "Users can manage own transactions" ON public.transactions FOR ALL
 
 DROP POLICY IF EXISTS "Users can manage own learning items" ON public.learning_items;
 CREATE POLICY "Users can manage own learning items" ON public.learning_items FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can manage own feedback" ON public.feedback;
+CREATE POLICY "Users can manage own feedback" ON public.feedback FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
