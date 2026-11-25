@@ -29,13 +29,30 @@ export const supabaseService = {
       email,
       password: pass,
       options: {
+        emailRedirectTo: `${window.location.origin}/login`,
         data: {
           full_name: name,
-          college: college || 'National Institute of Technology',
+          college: college || '',
           course: 'B.Tech - Artificial Intelligence and Machine Learning',
           year: '1st Year',
           semester: 'Sem 1',
         },
+      },
+    });
+
+    if (error) throw error;
+    return data;
+  },
+
+  async resendVerificationEmail(email: string) {
+    const client = getSupabaseClient();
+    if (!client) throw new Error('Supabase client is not configured.');
+
+    const { data, error } = await client.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/login`,
       },
     });
 
@@ -68,9 +85,18 @@ export const supabaseService = {
     if (!client) throw new Error('Supabase client is not configured.');
 
     const { data, error } = await client.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
+      redirectTo: `${window.location.origin}/reset-password`,
     });
 
+    if (error) throw error;
+    return data;
+  },
+
+  async exchangeCodeForSession(code: string) {
+    const client = getSupabaseClient();
+    if (!client) throw new Error('Supabase client is not configured.');
+
+    const { data, error } = await client.auth.exchangeCodeForSession(code);
     if (error) throw error;
     return data;
   },
@@ -124,7 +150,7 @@ export const supabaseService = {
       semester: data.semester || 'Sem 1',
       currentSemester: data.semester ? `${data.year || ''} ${data.semester}`.trim() : (data.year || '1st Year'),
       bio: data.bio || '',
-      avatarUrl: data.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
+      avatarUrl: data.avatar_url || '',
     };
   },
 
@@ -225,7 +251,7 @@ export const supabaseService = {
     };
   },
 
-  async updateTask(taskId: string, updates: Partial<Task>): Promise<void> {
+  async updateTask(taskId: string, updates: Partial<Task>, userId?: string): Promise<void> {
     const client = getSupabaseClient();
     if (!client) return;
 
@@ -244,15 +270,19 @@ export const supabaseService = {
     if (updates.participationType !== undefined) row.participation_type = updates.participationType;
     if (updates.teamName !== undefined) row.team_name = updates.teamName || null;
 
-    const { error } = await client.from('tasks').update(row).eq('id', taskId);
+    let query = client.from('tasks').update(row).eq('id', taskId);
+    if (userId) query = query.eq('user_id', userId);
+    const { error } = await query;
     if (error) throw error;
   },
 
-  async deleteTask(taskId: string): Promise<void> {
+  async deleteTask(taskId: string, userId?: string): Promise<void> {
     const client = getSupabaseClient();
     if (!client) return;
 
-    const { error } = await client.from('tasks').delete().eq('id', taskId);
+    let query = client.from('tasks').delete().eq('id', taskId);
+    if (userId) query = query.eq('user_id', userId);
+    const { error } = await query;
     if (error) throw error;
   },
 
@@ -325,7 +355,7 @@ export const supabaseService = {
     };
   },
 
-  async updateEvent(eventId: string, updates: Partial<CalendarEvent>): Promise<void> {
+  async updateEvent(eventId: string, updates: Partial<CalendarEvent>, userId?: string): Promise<void> {
     const client = getSupabaseClient();
     if (!client) return;
 
@@ -345,15 +375,19 @@ export const supabaseService = {
         : `${updates.startDate}T${time}:00Z`;
     }
 
-    const { error } = await client.from('events').update(row).eq('id', eventId);
+    let query = client.from('events').update(row).eq('id', eventId);
+    if (userId) query = query.eq('user_id', userId);
+    const { error } = await query;
     if (error) throw error;
   },
 
-  async deleteEvent(eventId: string): Promise<void> {
+  async deleteEvent(eventId: string, userId?: string): Promise<void> {
     const client = getSupabaseClient();
     if (!client) return;
 
-    const { error } = await client.from('events').delete().eq('id', eventId);
+    let query = client.from('events').delete().eq('id', eventId);
+    if (userId) query = query.eq('user_id', userId);
+    const { error } = await query;
     if (error) throw error;
   },
 
@@ -410,7 +444,7 @@ export const supabaseService = {
       status: h.overall_status || 'In Progress',
       trackName: h.track_name || '',
       deliverable: h.deliverable || '',
-      bannerImage: h.banner_image || 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80',
+      bannerImage: h.banner_image || '',
       notes: h.notes || '',
       participationType: h.participation_type || 'Individual',
       teamName: h.team_name || '',
@@ -484,13 +518,15 @@ export const supabaseService = {
       status: hackData.overall_status,
       trackName: hackData.track_name,
       deliverable: hackData.deliverable,
-      bannerImage: hackData.banner_image,
+      bannerImage: hackData.banner_image || '',
       notes: hackData.notes,
+      participationType: hackData.participation_type || 'Individual',
+      teamName: hackData.team_name || '',
       milestones: createdMilestones,
     };
   },
 
-  async updateHackathon(hackathonId: string, updates: Partial<Hackathon>): Promise<void> {
+  async updateHackathon(hackathonId: string, updates: Partial<Hackathon>, userId?: string): Promise<void> {
     const client = getSupabaseClient();
     if (!client) return;
 
@@ -507,16 +543,22 @@ export const supabaseService = {
     if (updates.deliverable !== undefined) row.deliverable = updates.deliverable;
     if (updates.bannerImage !== undefined) row.banner_image = updates.bannerImage;
     if (updates.notes !== undefined) row.notes = updates.notes;
+    if (updates.participationType !== undefined) row.participation_type = updates.participationType;
+    if (updates.teamName !== undefined) row.team_name = updates.teamName || null;
 
-    const { error } = await client.from('hackathons').update(row).eq('id', hackathonId);
+    let query = client.from('hackathons').update(row).eq('id', hackathonId);
+    if (userId) query = query.eq('user_id', userId);
+    const { error } = await query;
     if (error) throw error;
   },
 
-  async deleteHackathon(hackathonId: string): Promise<void> {
+  async deleteHackathon(hackathonId: string, userId?: string): Promise<void> {
     const client = getSupabaseClient();
     if (!client) return;
 
-    const { error } = await client.from('hackathons').delete().eq('id', hackathonId);
+    let query = client.from('hackathons').delete().eq('id', hackathonId);
+    if (userId) query = query.eq('user_id', userId);
+    const { error } = await query;
     if (error) throw error;
   },
 
@@ -560,7 +602,7 @@ export const supabaseService = {
     };
   },
 
-  async updateMilestone(milestoneId: string, updates: Partial<HackathonMilestone>): Promise<void> {
+  async updateMilestone(milestoneId: string, updates: Partial<HackathonMilestone>, userId?: string): Promise<void> {
     const client = getSupabaseClient();
     if (!client) return;
 
@@ -575,26 +617,32 @@ export const supabaseService = {
     if (updates.status !== undefined) row.status = updates.status;
     if (updates.notes !== undefined) row.notes = updates.notes;
 
-    const { error } = await client.from('hackathon_milestones').update(row).eq('id', milestoneId);
+    let query = client.from('hackathon_milestones').update(row).eq('id', milestoneId);
+    if (userId) query = query.eq('user_id', userId);
+    const { error } = await query;
     if (error) throw error;
   },
 
-  async deleteMilestone(milestoneId: string): Promise<void> {
+  async deleteMilestone(milestoneId: string, userId?: string): Promise<void> {
     const client = getSupabaseClient();
     if (!client) return;
 
-    const { error } = await client.from('hackathon_milestones').delete().eq('id', milestoneId);
+    let query = client.from('hackathon_milestones').delete().eq('id', milestoneId);
+    if (userId) query = query.eq('user_id', userId);
+    const { error } = await query;
     if (error) throw error;
   },
 
-  async updateMilestoneStatus(milestoneId: string, status: string): Promise<void> {
+  async updateMilestoneStatus(milestoneId: string, status: string, userId?: string): Promise<void> {
     const client = getSupabaseClient();
     if (!client) return;
 
-    const { error } = await client
+    let query = client
       .from('hackathon_milestones')
       .update({ status, updated_at: new Date().toISOString() })
       .eq('id', milestoneId);
+    if (userId) query = query.eq('user_id', userId);
+    const { error } = await query;
 
     if (error) throw error;
   },
@@ -679,7 +727,7 @@ export const supabaseService = {
     };
   },
 
-  async updateTransaction(txId: string, updates: Partial<Transaction>): Promise<void> {
+  async updateTransaction(txId: string, updates: Partial<Transaction>, userId?: string): Promise<void> {
     const client = getSupabaseClient();
     if (!client) return;
 
@@ -699,15 +747,19 @@ export const supabaseService = {
     if (updates.notes !== undefined) row.notes = updates.notes;
     if (updates.status !== undefined) row.status = updates.status;
 
-    const { error } = await client.from('transactions').update(row).eq('id', txId);
+    let query = client.from('transactions').update(row).eq('id', txId);
+    if (userId) query = query.eq('user_id', userId);
+    const { error } = await query;
     if (error) throw error;
   },
 
-  async deleteTransaction(txId: string): Promise<void> {
+  async deleteTransaction(txId: string, userId?: string): Promise<void> {
     const client = getSupabaseClient();
     if (!client) return;
 
-    const { error } = await client.from('transactions').delete().eq('id', txId);
+    let query = client.from('transactions').delete().eq('id', txId);
+    if (userId) query = query.eq('user_id', userId);
+    const { error } = await query;
     if (error) throw error;
   },
 

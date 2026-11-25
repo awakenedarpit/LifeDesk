@@ -63,7 +63,7 @@ export const CalendarView: React.FC = () => {
         category: task.category,
         startDate: datePart || '',
         startTime: timePart ? timePart.substring(0, 5) : undefined,
-        type: 'task',
+        type: 'task' as const,
         referenceId: task.id,
       };
     })
@@ -80,7 +80,7 @@ export const CalendarView: React.FC = () => {
         category: deadline.category,
         startDate: datePart || '',
         startTime: timePart ? timePart.substring(0, 5) : undefined,
-        type: 'deadline',
+        type: 'deadline' as const,
         referenceId: deadline.id,
       };
     })
@@ -112,12 +112,12 @@ export const CalendarView: React.FC = () => {
     ...e,
     color:
       e.type === 'deadline'
-        ? 'bg-error-container text-on-error-container border-error-container'
+        ? 'bg-error-container text-on-error-container border-error/25'
         : e.type === 'task'
-        ? 'bg-primary-fixed text-on-primary-fixed-variant border-primary-fixed'
+        ? 'bg-primary-fixed text-on-primary-fixed-variant border-primary/30'
         : e.type === 'hackathon'
-        ? 'bg-tertiary-fixed text-on-tertiary-fixed-variant border-tertiary-fixed'
-        : 'bg-surface-container-high text-on-surface border-surface-container',
+        ? 'bg-tertiary-fixed text-on-tertiary-fixed-variant border-tertiary/30'
+        : 'bg-surface-container-low text-on-surface border-outline-variant',
   }));
 
   // Month grid helpers
@@ -167,7 +167,7 @@ export const CalendarView: React.FC = () => {
 
         <div className="flex items-center gap-2 self-stretch sm:self-auto justify-between sm:justify-end">
           {/* Mode Switcher */}
-          <div className="flex bg-surface-container-low p-1 rounded-xl border border-surface-container">
+          <div className="flex bg-surface-container-lowest p-1 rounded-xl border border-outline-variant">
             {(['month', 'week', 'day'] as CalendarMode[]).map((m) => (
               <button
                 key={m}
@@ -186,7 +186,7 @@ export const CalendarView: React.FC = () => {
           {/* New Event Button */}
           <button
             onClick={() => setShowAddModal(true)}
-            className="h-9 px-3.5 bg-primary text-on-primary rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-primary-container active:scale-95 transition-all"
+            className="h-9 px-3.5 bg-primary text-on-primary rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-primary-container hover:text-on-primary-container active:scale-95 transition-all"
           >
             <span className="material-symbols-outlined text-[17px]">add</span>
             <span>Event</span>
@@ -195,14 +195,14 @@ export const CalendarView: React.FC = () => {
       </div>
 
       {/* Navigation Toolbar */}
-      <div className="flex items-center justify-between bg-surface-container-lowest p-3 rounded-2xl border border-surface-container">
+      <div className="flex items-center justify-between bg-surface-container-lowest p-3 rounded-2xl border border-outline-variant shadow-xs">
         <div className="flex items-center gap-2">
           <h2 className="font-title-sm text-base sm:text-lg text-on-surface font-bold">
             {monthNames[month]} {year}
           </h2>
           <button
             onClick={todayPeriod}
-            className="font-label-xs text-xs px-2.5 py-1 rounded-lg bg-surface-container-high text-primary font-bold hover:bg-surface-container transition-colors"
+            className="font-label-xs text-xs px-2.5 py-1 rounded-lg bg-primary-fixed text-on-primary-fixed-variant font-bold hover:bg-surface-container-high transition-colors"
           >
             Today
           </button>
@@ -228,9 +228,9 @@ export const CalendarView: React.FC = () => {
 
       {/* 1. MONTH VIEW */}
       {mode === 'month' && (
-        <div className="bg-surface-container-lowest rounded-2xl border border-surface-container shadow-sm overflow-hidden">
+        <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm overflow-hidden">
           {/* Days of Week Header */}
-          <div className="grid grid-cols-7 border-b border-surface-container text-center bg-surface-container-low/50">
+          <div className="grid grid-cols-7 border-b border-outline-variant text-center bg-surface-container-low/70">
             {daysOfWeek.map((d) => (
               <div key={d} className="py-2 text-[11px] sm:text-xs font-bold text-on-surface-variant uppercase">
                 {d}
@@ -242,7 +242,7 @@ export const CalendarView: React.FC = () => {
           <div className="grid grid-cols-7 auto-rows-fr">
             {/* Empty slots before first day */}
             {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-              <div key={`empty-${i}`} className="min-h-[64px] sm:min-h-[96px] p-1 sm:p-2 bg-surface-container-low/30 border-r border-b border-surface-container/60" />
+              <div key={`empty-${i}`} className="min-h-[64px] sm:min-h-[96px] p-1 sm:p-2 bg-surface-container-low/35 border-r border-b border-outline-variant/60" />
             ))}
 
             {/* Days in Month */}
@@ -257,9 +257,9 @@ export const CalendarView: React.FC = () => {
                 <div
                   key={dateStr}
                   onClick={() => setSelectedDateStr(dateStr)}
-                  className={`min-h-[64px] sm:min-h-[96px] p-1 sm:p-2 border-r border-b border-surface-container transition-colors cursor-pointer flex flex-col ${
+                  className={`min-h-[64px] sm:min-h-[96px] p-1 sm:p-2 border-r border-b border-outline-variant/70 transition-colors cursor-pointer flex flex-col ${
                     isSelected
-                      ? 'bg-primary-fixed/20 ring-1 ring-inset ring-primary'
+                      ? 'bg-primary-fixed/40 ring-1 ring-inset ring-primary-deep'
                       : 'hover:bg-surface-container-low/60'
                   }`}
                 >
@@ -269,7 +269,7 @@ export const CalendarView: React.FC = () => {
                         isToday
                           ? 'bg-primary text-on-primary'
                           : isSelected
-                          ? 'font-bold text-primary'
+                          ? 'font-bold text-primary-ink'
                           : 'text-on-surface'
                       }`}
                     >
@@ -286,7 +286,7 @@ export const CalendarView: React.FC = () => {
                               ? 'bg-error'
                               : e.type === 'hackathon'
                               ? 'bg-tertiary'
-                              : 'bg-primary'
+                              : 'bg-primary-deep'
                           }`}
                         />
                       ))}
@@ -319,7 +319,7 @@ export const CalendarView: React.FC = () => {
 
       {/* 2. WEEK VIEW */}
       {mode === 'week' && (
-        <div className="bg-surface-container-lowest rounded-2xl border border-surface-container shadow-sm p-3 overflow-x-auto">
+        <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm p-3 overflow-x-auto">
           <div className="min-w-[600px] grid grid-cols-7 gap-2">
             {Array.from({ length: 7 }).map((_, i) => {
               const startOfWeek = new Date(currentDate);
@@ -334,11 +334,11 @@ export const CalendarView: React.FC = () => {
                   onClick={() => setSelectedDateStr(dateStr)}
                   className={`p-2.5 rounded-xl border flex flex-col gap-2 min-h-[160px] cursor-pointer transition-all ${
                     selectedDateStr === dateStr
-                      ? 'border-primary bg-primary/5'
-                      : 'border-surface-container bg-surface-container-low'
+                      ? 'border-primary-deep bg-primary-fixed/30'
+                      : 'border-outline-variant bg-surface-container-low'
                   }`}
                 >
-                  <div className="text-center pb-2 border-b border-surface-container">
+                  <div className="text-center pb-2 border-b border-outline-variant">
                     <span className="text-[11px] font-bold text-on-surface-variant uppercase block">
                       {daysOfWeek[i]}
                     </span>
@@ -364,7 +364,7 @@ export const CalendarView: React.FC = () => {
                       </div>
                     ))}
                     {dayEvents.length === 0 && (
-                      <span className="text-[11px] text-on-surface-variant/60 text-center my-auto">
+                      <span className="text-[11px] text-on-surface-variant/70 text-center my-auto">
                         No events
                       </span>
                     )}
@@ -378,8 +378,8 @@ export const CalendarView: React.FC = () => {
 
       {/* 3. DAY VIEW */}
       {mode === 'day' && (
-        <div className="bg-surface-container-lowest rounded-2xl border border-surface-container shadow-sm p-4 flex flex-col gap-3">
-          <div className="flex items-center justify-between pb-3 border-b border-surface-container">
+        <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between pb-3 border-b border-outline-variant">
             <span className="font-title-sm text-base text-on-surface font-bold">
               Timeline for {new Date(selectedDateStr).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
             </span>
@@ -391,11 +391,11 @@ export const CalendarView: React.FC = () => {
           <div className="flex flex-col gap-2.5">
             {selectedDayItems.length === 0 ? (
               <div className="py-8 text-center text-on-surface-variant">
-                <span className="material-symbols-outlined text-4xl text-primary mb-1">event_available</span>
-                <p className="font-semibold text-sm">No scheduled items for this date.</p>
+                <span className="material-symbols-outlined text-4xl text-primary-ink mb-1">event_available</span>
+                <p className="font-semibold text-sm text-on-surface">No scheduled items for this date.</p>
                 <button
                   onClick={() => setShowAddModal(true)}
-                  className="mt-3 px-3.5 py-1.5 bg-primary text-on-primary rounded-xl text-xs font-bold"
+                  className="mt-3 px-3.5 py-1.5 bg-primary text-on-primary hover:bg-primary-container hover:text-on-primary-container rounded-xl text-xs font-bold transition-colors"
                 >
                   + Add Event
                 </button>
@@ -407,7 +407,7 @@ export const CalendarView: React.FC = () => {
                   className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${item.color}`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs font-bold px-2 py-1 rounded bg-black/10">
+                    <span className="font-mono text-xs font-bold px-2 py-1 rounded bg-surface-container-lowest/75">
                       {item.startTime || '12:00'}
                     </span>
                     <div>
@@ -417,7 +417,7 @@ export const CalendarView: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <span className="font-label-xs text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-black/10">
+                  <span className="font-label-xs text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-surface-container-lowest/75">
                     {item.type}
                   </span>
                 </div>
@@ -428,10 +428,10 @@ export const CalendarView: React.FC = () => {
       )}
 
       {/* Selected Date Agenda Drawer (Appears below calendar, indispensable for mobile) */}
-      <div className="bg-surface-container-lowest rounded-2xl border border-surface-container p-4 shadow-sm flex flex-col gap-3">
+      <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-4 shadow-sm flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-[20px]">calendar_today</span>
+            <span className="material-symbols-outlined text-primary-ink text-[20px]">calendar_today</span>
             <h3 className="font-title-sm text-sm sm:text-base text-on-surface font-bold">
               Agenda for {new Date(selectedDateStr).toLocaleDateString([], { month: 'short', day: 'numeric', weekday: 'short' })}
             </h3>
@@ -450,11 +450,11 @@ export const CalendarView: React.FC = () => {
             {selectedDayItems.map((item) => (
               <div
                 key={item.id}
-                className="p-3 rounded-xl bg-surface-container-low border border-surface-container flex items-center justify-between gap-3"
+                className="p-3 rounded-xl bg-surface-container-low border border-outline-variant flex items-center justify-between gap-3"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-lg bg-surface-container-high text-primary flex items-center justify-center font-bold text-xs flex-shrink-0">
-                    {item.startTime ? item.startTime.substring(0, 5) : 'All day'}
+                  <div className="w-10 h-9 rounded-lg bg-primary-fixed text-on-primary-fixed-variant flex items-center justify-center font-bold text-[11px] font-mono flex-shrink-0">
+                    {item.startTime ? item.startTime.substring(0, 5) : 'All'}
                   </div>
                   <div className="truncate">
                     <span className="font-title-sm text-xs sm:text-sm text-on-surface font-bold block truncate">
@@ -506,8 +506,8 @@ export const CalendarView: React.FC = () => {
       {/* Quick Add Event Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-surface-container-lowest border border-surface-container-high w-full max-w-sm rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
-            <div className="flex items-center justify-between pb-2 border-b border-surface-container">
+          <div className="bg-surface-container-lowest border border-outline-variant w-full max-w-sm rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
+            <div className="flex items-center justify-between pb-2 border-b border-outline-variant">
               <h3 className="font-headline-md text-base text-on-surface font-bold">
                 Add Calendar Event
               </h3>
@@ -530,7 +530,7 @@ export const CalendarView: React.FC = () => {
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="e.g. Physics Lab Viva, Club Meet"
-                  className="w-full h-11 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none"
+                  className="w-full h-11 px-3 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-sm outline-none"
                   autoFocus
                 />
               </div>
@@ -544,7 +544,7 @@ export const CalendarView: React.FC = () => {
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
                   placeholder="e.g. Lab room 302, carry notebook"
-                  className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none"
+                  className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-sm outline-none"
                 />
               </div>
 
@@ -557,7 +557,7 @@ export const CalendarView: React.FC = () => {
                     type="date"
                     value={newDate}
                     onChange={(e) => setNewDate(e.target.value)}
-                    className="w-full h-10 px-2 bg-surface-container-low rounded-xl text-on-surface text-xs outline-none"
+                    className="w-full h-10 px-2 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-xs outline-none"
                   />
                 </div>
 
@@ -569,7 +569,7 @@ export const CalendarView: React.FC = () => {
                     type="time"
                     value={newTime}
                     onChange={(e) => setNewTime(e.target.value)}
-                    className="w-full h-10 px-2 bg-surface-container-low rounded-xl text-on-surface text-xs outline-none"
+                    className="w-full h-10 px-2 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-xs outline-none"
                   />
                 </div>
               </div>
@@ -578,13 +578,13 @@ export const CalendarView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="flex-1 h-10 rounded-xl bg-surface-container-high text-on-surface text-xs font-bold"
+                  className="flex-1 h-10 rounded-xl bg-surface-container-high text-on-surface text-xs font-bold hover:bg-surface-container transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 h-10 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm"
+                  className="flex-1 h-10 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm hover:bg-primary-container hover:text-on-primary-container transition-colors"
                 >
                   Save Event
                 </button>
@@ -597,8 +597,8 @@ export const CalendarView: React.FC = () => {
       {/* Edit Event Modal */}
       {editingEvent && (
         <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-surface-container-lowest border border-surface-container-high w-full max-w-sm rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
-            <div className="flex items-center justify-between pb-2 border-b border-surface-container">
+          <div className="bg-surface-container-lowest border border-outline-variant w-full max-w-sm rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
+            <div className="flex items-center justify-between pb-2 border-b border-outline-variant">
               <h3 className="font-headline-md text-base text-on-surface font-bold">
                 Edit Calendar Event
               </h3>
@@ -633,7 +633,7 @@ export const CalendarView: React.FC = () => {
                   type="text"
                   value={editingEvent.title}
                   onChange={(e) => setEditingEvent({ ...editingEvent, title: e.target.value })}
-                  className="w-full h-11 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none"
+                  className="w-full h-11 px-3 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-sm outline-none"
                 />
               </div>
 
@@ -645,7 +645,7 @@ export const CalendarView: React.FC = () => {
                   type="text"
                   value={editingEvent.description || ''}
                   onChange={(e) => setEditingEvent({ ...editingEvent, description: e.target.value })}
-                  className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none"
+                  className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-sm outline-none"
                 />
               </div>
 
@@ -658,7 +658,7 @@ export const CalendarView: React.FC = () => {
                     type="date"
                     value={editingEvent.startDate}
                     onChange={(e) => setEditingEvent({ ...editingEvent, startDate: e.target.value })}
-                    className="w-full h-10 px-2 bg-surface-container-low rounded-xl text-on-surface text-xs outline-none"
+                    className="w-full h-10 px-2 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-xs outline-none"
                   />
                 </div>
 
@@ -670,7 +670,7 @@ export const CalendarView: React.FC = () => {
                     type="time"
                     value={editingEvent.startTime || '14:00'}
                     onChange={(e) => setEditingEvent({ ...editingEvent, startTime: e.target.value })}
-                    className="w-full h-10 px-2 bg-surface-container-low rounded-xl text-on-surface text-xs outline-none"
+                    className="w-full h-10 px-2 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-xs outline-none"
                   />
                 </div>
               </div>
@@ -682,7 +682,7 @@ export const CalendarView: React.FC = () => {
                 <select
                   value={editingEvent.type}
                   onChange={(e) => setEditingEvent({ ...editingEvent, type: e.target.value as CalendarEvent['type'] })}
-                  className="w-full h-10 px-2 bg-surface-container-low rounded-xl text-on-surface text-xs font-semibold outline-none"
+                  className="w-full h-10 px-2 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-xs font-semibold outline-none"
                 >
                   <option value="event">General Event</option>
                   <option value="deadline">Academic Deadline</option>
@@ -693,13 +693,13 @@ export const CalendarView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setEditingEvent(null)}
-                  className="flex-1 h-10 rounded-xl bg-surface-container-high text-on-surface text-xs font-bold"
+                  className="flex-1 h-10 rounded-xl bg-surface-container-high text-on-surface text-xs font-bold hover:bg-surface-container transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 h-10 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm"
+                  className="flex-1 h-10 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm hover:bg-primary-container hover:text-on-primary-container transition-colors"
                 >
                   Save Changes
                 </button>

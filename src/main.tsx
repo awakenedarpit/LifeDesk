@@ -8,7 +8,7 @@ const registerServiceWorker = () => {
   if (!window.isSecureContext) return;
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/LifeDesk/sw.js', { scope: '/LifeDesk/' })
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
       .then((registration) => {
         registration.update().catch(() => undefined);
       })

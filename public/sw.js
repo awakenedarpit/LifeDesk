@@ -1,10 +1,16 @@
-const CACHE_NAME = 'lifedesk-v1';
+const CACHE_NAME = 'lifedesk-v2';
 const APP_SHELL = [
-  '/LifeDesk/',
-  '/LifeDesk/index.html',
-  '/LifeDesk/manifest.webmanifest',
-  '/LifeDesk/lifedesk-pwa-192.png',
-  '/LifeDesk/lifedesk-pwa-512.png'
+  '/',
+  '/index.html',
+  '/manifest.webmanifest',
+  '/favicon.png',
+  '/apple-touch-icon.png',
+  '/lifedesk-pwa-192.png',
+  '/lifedesk-pwa-512.png',
+  '/lifedesk-pwa-maskable-512.png',
+  '/assets/lifedesk-logo.png',
+  '/assets/lifedesk-logo-dark.png',
+  '/assets/lifedesk-mark.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -39,17 +45,17 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('/LifeDesk/index.html', copy));
+          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy));
           return response;
         })
-        .catch(() => caches.match('/LifeDesk/index.html'))
+        .catch(() => caches.match('/index.html'))
     );
     return;
   }
 
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-      if (response.ok && url.pathname.startsWith('/LifeDesk/')) {
+      if (response.ok && url.pathname.startsWith('/')) {
         const copy = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
       }

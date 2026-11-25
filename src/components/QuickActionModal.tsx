@@ -161,14 +161,14 @@ export const QuickActionModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-3 sm:p-4">
-      <div 
-        className="bg-surface-container-lowest border border-surface-container-high w-full max-w-md rounded-2xl p-5 shadow-2xl flex flex-col gap-3 max-h-[90vh] overflow-y-auto"
+      <div
+        className="bg-surface-container-lowest border border-outline-variant w-full max-w-md rounded-2xl p-5 shadow-2xl flex flex-col gap-3 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-1 border-b border-surface-container">
+        <div className="flex items-center justify-between pb-2 border-b border-outline-variant">
           <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+            <span className="w-8 h-8 rounded-lg bg-surface-container text-primary-ink flex items-center justify-center">
               <span className="material-symbols-outlined text-[20px]">
                 {activeModal === 'expense' && 'add_circle'}
                 {activeModal === 'income' && 'savings'}
@@ -313,7 +313,7 @@ export const QuickActionModal: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="flex-1 h-10 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-primary-container transition-colors shadow-sm"
+                className="flex-1 h-10 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm"
               >
                 Confirm Expense
               </button>
@@ -413,7 +413,7 @@ export const QuickActionModal: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="flex-1 h-10 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-primary-container transition-colors shadow-sm"
+                className="flex-1 h-10 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm"
               >
                 Add Income
               </button>
@@ -504,7 +504,7 @@ export const QuickActionModal: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="flex-1 h-10 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-primary-container transition-colors shadow-sm"
+                className="flex-1 h-10 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm"
               >
                 Confirm Transfer
               </button>
@@ -557,7 +557,7 @@ export const QuickActionModal: React.FC = () => {
 
             <div className="p-3 bg-surface-container-low rounded-lg text-sm flex justify-between items-center">
               <span className="text-on-surface-variant font-medium">New Total Available:</span>
-              <span className="font-headline-md text-primary font-bold">
+              <span className="font-headline-md text-primary-ink font-bold tabular-nums">
                 ₹{((parseFloat(manualUpi) || 0) + (parseFloat(manualCash) || 0)).toLocaleString('en-IN')}
               </span>
             </div>
@@ -572,7 +572,7 @@ export const QuickActionModal: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="flex-1 h-10 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-primary-container transition-colors shadow-sm"
+                className="flex-1 h-10 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm"
               >
                 Save Balances
               </button>
@@ -715,7 +715,7 @@ export const QuickActionModal: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="flex-1 h-10 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-primary-container transition-colors shadow-sm"
+                className="flex-1 h-10 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm"
               >
                 Create Task
               </button>
@@ -799,7 +799,7 @@ export const QuickActionModal: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="flex-1 h-10 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-primary-container transition-colors shadow-sm"
+                className="flex-1 h-10 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm"
               >
                 Save Deadline
               </button>

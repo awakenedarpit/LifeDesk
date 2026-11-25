@@ -42,21 +42,21 @@ export const MoneyView: React.FC = () => {
         <div className="flex items-center gap-2 self-stretch sm:self-auto flex-wrap">
           <button
             onClick={() => openModal('expense')}
-            className="h-10 px-3.5 bg-primary text-on-primary rounded-xl font-label-md text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-sm hover:bg-primary-container active:scale-95 transition-all flex-1 sm:flex-initial justify-center"
+            className="h-10 px-3.5 bg-primary text-on-primary rounded-xl font-label-md text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-sm hover:bg-primary-container hover:text-on-primary-container active:scale-95 transition-all flex-1 sm:flex-initial justify-center"
           >
             <span className="material-symbols-outlined text-[18px]">add_circle</span>
             <span>Expense</span>
           </button>
           <button
             onClick={() => openModal('income')}
-            className="h-10 px-3.5 bg-surface-container-high text-on-surface rounded-xl font-label-md text-xs sm:text-sm font-bold flex items-center gap-1.5 hover:bg-surface-container active:scale-95 transition-all flex-1 sm:flex-initial justify-center"
+            className="h-10 px-3.5 bg-surface-container-lowest border border-outline-variant text-on-surface rounded-xl font-label-md text-xs sm:text-sm font-bold flex items-center gap-1.5 hover:bg-surface-container active:scale-95 transition-all flex-1 sm:flex-initial justify-center"
           >
-            <span className="material-symbols-outlined text-[18px]">savings</span>
+            <span className="material-symbols-outlined text-[18px] text-primary-ink">savings</span>
             <span>Income</span>
           </button>
           <button
             onClick={() => openModal('transfer')}
-            className="h-10 px-3 bg-surface-container-high text-on-surface rounded-xl font-label-md text-xs sm:text-sm font-bold flex items-center gap-1.5 hover:bg-surface-container active:scale-95 transition-all"
+            className="h-10 px-3 bg-surface-container-lowest border border-outline-variant text-on-surface rounded-xl font-label-md text-xs sm:text-sm font-bold flex items-center gap-1.5 hover:bg-surface-container active:scale-95 transition-all"
             title="Transfer between UPI and Cash"
           >
             <span className="material-symbols-outlined text-[18px]">sync_alt</span>
@@ -64,7 +64,7 @@ export const MoneyView: React.FC = () => {
           </button>
           <button
             onClick={() => openModal('balance')}
-            className="h-10 px-3 bg-surface-container-high text-on-surface rounded-xl font-label-md text-xs sm:text-sm font-bold flex items-center gap-1.5 hover:bg-surface-container active:scale-95 transition-all"
+            className="h-10 px-3 bg-surface-container-lowest border border-outline-variant text-on-surface rounded-xl font-label-md text-xs sm:text-sm font-bold flex items-center gap-1.5 hover:bg-surface-container active:scale-95 transition-all"
             title="Calibrate Balances"
           >
             <span className="material-symbols-outlined text-[18px]">tune</span>
@@ -74,8 +74,8 @@ export const MoneyView: React.FC = () => {
       </div>
 
       {/* Security Notice */}
-      <div className="p-3 rounded-xl bg-surface-container-low border border-surface-container flex items-center gap-2.5 text-xs text-on-surface-variant">
-        <span className="material-symbols-outlined text-primary text-[18px] flex-shrink-0">shield</span>
+      <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant flex items-center gap-2.5 text-xs text-on-surface-variant">
+        <span className="material-symbols-outlined text-primary-ink text-[18px] flex-shrink-0">shield</span>
         <span>
           <strong className="text-on-surface">Zero-Credential Financial Safety:</strong> LifeDesk never connects to banks, never requires login passwords, and never asks for UPI PINs or OTPs. All balance calibration is entirely student-managed.
         </span>
@@ -84,9 +84,9 @@ export const MoneyView: React.FC = () => {
       {/* Main Balances Breakdown Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
         {/* Liquid Total */}
-        <div className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-surface-container flex flex-col justify-between">
+        <div className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
-            <span className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+            <span className="w-8 h-8 rounded-xl bg-primary-fixed text-primary-ink flex items-center justify-center">
               <span className="material-symbols-outlined text-[19px]">account_balance_wallet</span>
             </span>
             <span className="font-label-xs text-[10px] bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-full font-bold">
@@ -97,7 +97,7 @@ export const MoneyView: React.FC = () => {
             <span className="font-label-xs text-[10px] text-on-surface-variant block uppercase font-bold tracking-wider">
               Available Money
             </span>
-            <span className="font-currency-stat text-xl sm:text-2xl text-on-surface font-extrabold leading-tight block mt-0.5 truncate">
+            <span className="font-currency-stat text-xl sm:text-2xl text-on-surface font-extrabold leading-tight block mt-0.5 truncate tabular-nums">
               {formatRupee(availableMoney)}
             </span>
             <span className="text-[10px] text-on-surface-variant block mt-0.5">
@@ -107,13 +107,13 @@ export const MoneyView: React.FC = () => {
         </div>
 
         {/* UPI Balance */}
-        <div 
+        <div
           onClick={() => openModal('balance')}
-          className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-surface-container flex flex-col justify-between cursor-pointer hover:border-primary/40 transition-colors"
+          className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant flex flex-col justify-between cursor-pointer hover:border-primary transition-colors"
           title="Click to calibrate UPI"
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="w-8 h-8 rounded-xl bg-surface-container-high text-primary flex items-center justify-center">
+            <span className="w-8 h-8 rounded-xl bg-surface-container-low text-primary-ink flex items-center justify-center border border-outline-variant/60">
               <span className="material-symbols-outlined text-[19px]">phone_android</span>
             </span>
             <span className="material-symbols-outlined text-[16px] text-on-surface-variant">
@@ -124,7 +124,7 @@ export const MoneyView: React.FC = () => {
             <span className="font-label-xs text-[10px] text-on-surface-variant block uppercase font-bold tracking-wider">
               UPI Balance
             </span>
-            <span className="font-currency-stat text-xl sm:text-2xl text-on-surface font-extrabold leading-tight block mt-0.5 truncate">
+            <span className="font-currency-stat text-xl sm:text-2xl text-on-surface font-extrabold leading-tight block mt-0.5 truncate tabular-nums">
               {formatRupee(balances.upiBalance)}
             </span>
             <span className="text-[10px] text-on-surface-variant block mt-0.5">
@@ -134,13 +134,13 @@ export const MoneyView: React.FC = () => {
         </div>
 
         {/* Cash Balance */}
-        <div 
+        <div
           onClick={() => openModal('balance')}
-          className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-surface-container flex flex-col justify-between cursor-pointer hover:border-primary/40 transition-colors"
+          className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant flex flex-col justify-between cursor-pointer hover:border-primary transition-colors"
           title="Click to calibrate Cash in Wallet"
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="w-8 h-8 rounded-xl bg-surface-container-high text-secondary flex items-center justify-center">
+            <span className="w-8 h-8 rounded-xl bg-surface-container-low text-primary-ink flex items-center justify-center border border-outline-variant/60">
               <span className="material-symbols-outlined text-[19px]">payments</span>
             </span>
             <span className="material-symbols-outlined text-[16px] text-on-surface-variant">
@@ -151,7 +151,7 @@ export const MoneyView: React.FC = () => {
             <span className="font-label-xs text-[10px] text-on-surface-variant block uppercase font-bold tracking-wider">
               Physical Cash
             </span>
-            <span className="font-currency-stat text-xl sm:text-2xl text-on-surface font-extrabold leading-tight block mt-0.5 truncate">
+            <span className="font-currency-stat text-xl sm:text-2xl text-on-surface font-extrabold leading-tight block mt-0.5 truncate tabular-nums">
               {formatRupee(balances.cashBalance)}
             </span>
             <span className="text-[10px] text-on-surface-variant block mt-0.5">
@@ -161,12 +161,12 @@ export const MoneyView: React.FC = () => {
         </div>
 
         {/* Card Spending */}
-        <div className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-surface-container flex flex-col justify-between">
+        <div className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
-            <span className="w-8 h-8 rounded-xl bg-surface-container-high text-on-surface flex items-center justify-center">
+            <span className="w-8 h-8 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center justify-center">
               <span className="material-symbols-outlined text-[19px]">credit_card</span>
             </span>
-            <span className="font-label-xs text-[10px] bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full font-bold">
+            <span className="font-label-xs text-[10px] bg-tertiary-fixed text-on-tertiary-fixed-variant px-2 py-0.5 rounded-full font-bold">
               Card
             </span>
           </div>
@@ -174,10 +174,10 @@ export const MoneyView: React.FC = () => {
             <span className="font-label-xs text-[10px] text-on-surface-variant block uppercase font-bold tracking-wider">
               Card Spending
             </span>
-            <span className="font-currency-stat text-xl sm:text-2xl text-on-surface font-extrabold leading-tight block mt-0.5 truncate">
+            <span className="font-currency-stat text-xl sm:text-2xl text-on-surface font-extrabold leading-tight block mt-0.5 truncate tabular-nums">
               {formatRupee(cardSpending)}
             </span>
-            <span className="text-[10px] text-secondary font-semibold block mt-0.5">
+            <span className="text-[10px] text-primary-ink font-semibold block mt-0.5">
               No debit to liquid cash
             </span>
           </div>
@@ -185,21 +185,21 @@ export const MoneyView: React.FC = () => {
       </div>
 
       {/* Transaction Ledger Section */}
-      <div className="bg-surface-container-lowest rounded-2xl border border-surface-container shadow-sm p-4 sm:p-5 flex flex-col gap-4">
+      <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm p-4 sm:p-5 flex flex-col gap-4">
         {/* Ledger Header & Filter Tabs */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-surface-container">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-outline-variant">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-[22px]">receipt_long</span>
+            <span className="material-symbols-outlined text-primary-ink text-[22px]">receipt_long</span>
             <h2 className="font-title-sm text-base sm:text-lg text-on-surface font-bold">
               Transaction Ledger
             </h2>
-            <span className="font-label-xs text-xs px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-bold">
+            <span className="font-label-xs text-xs px-2 py-0.5 rounded-full bg-surface-container-low border border-outline-variant text-on-surface-variant font-bold tabular-nums">
               {filteredTransactions.length}
             </span>
           </div>
 
           {/* Filter Pills */}
-          <div className="flex bg-surface-container-low p-1 rounded-xl border border-surface-container self-stretch sm:self-auto overflow-x-auto scrollbar-none">
+          <div className="flex bg-surface-container-low p-1 rounded-xl border border-outline-variant self-stretch sm:self-auto overflow-x-auto scrollbar-none">
             {(
               [
                 { id: 'all', label: 'All' },
@@ -226,8 +226,8 @@ export const MoneyView: React.FC = () => {
         {/* Responsive Ledger Presentation: Desktop Table & Mobile Cards */}
         {filteredTransactions.length === 0 ? (
           <div className="py-12 text-center text-on-surface-variant">
-            <span className="material-symbols-outlined text-4xl text-primary mb-2">payments</span>
-            <p className="font-bold text-sm">No transactions found</p>
+            <span className="material-symbols-outlined text-4xl text-primary-ink mb-2">payments</span>
+            <p className="font-bold text-sm text-on-surface">No transactions found</p>
             <p className="text-xs text-on-surface-variant mt-1">Log an expense, deposit income, or record a transfer.</p>
           </div>
         ) : (
@@ -236,7 +236,7 @@ export const MoneyView: React.FC = () => {
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-surface-container text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
+                  <tr className="border-b border-outline-variant text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
                     <th className="pb-3 pl-1">Description</th>
                     <th className="pb-3">Type</th>
                     <th className="pb-3">Account / Method</th>
@@ -246,7 +246,7 @@ export const MoneyView: React.FC = () => {
                     <th className="pb-3 text-right pr-1">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-surface-container">
+                <tbody className="divide-y divide-outline-variant/60">
                   {filteredTransactions.map((tx) => {
                     const isIncome = tx.type === 'income';
                     const isTransfer = tx.type === 'transfer';
@@ -268,10 +268,10 @@ export const MoneyView: React.FC = () => {
                           <span
                             className={`font-label-xs text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
                               isIncome
-                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                ? 'bg-primary-fixed text-on-primary-fixed-variant'
                                 : isTransfer
-                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
-                                : 'bg-surface-container-high text-on-surface'
+                                ? 'bg-tertiary-fixed text-on-tertiary-fixed-variant'
+                                : 'bg-surface-container-low border border-outline-variant text-on-surface'
                             }`}
                           >
                             {tx.type}
@@ -283,18 +283,18 @@ export const MoneyView: React.FC = () => {
                         <td className="py-3 text-xs text-on-surface-variant">
                           {tx.category}
                         </td>
-                        <td className="py-3 text-xs text-on-surface-variant">
+                        <td className="py-3 text-xs text-on-surface-variant tabular-nums">
                           {tx.date} {tx.time && `• ${tx.time}`}
                         </td>
-                        <td className="py-3 text-right font-bold text-sm">
+                        <td className="py-3 text-right font-bold text-sm tabular-nums">
                           <span
                             className={
                               isZero
-                                ? 'text-primary'
+                                ? 'text-primary-ink'
                                 : isIncome
-                                ? 'text-emerald-600 dark:text-emerald-400'
+                                ? 'text-primary-ink'
                                 : isTransfer
-                                ? 'text-blue-600 dark:text-blue-400'
+                                ? 'text-tertiary'
                                 : 'text-on-surface'
                             }
                           >
@@ -312,7 +312,7 @@ export const MoneyView: React.FC = () => {
                             </button>
                             <button
                               onClick={() => setTxToDelete(tx.id)}
-                              className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/20 transition-colors"
+                              className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/25 transition-colors"
                               title="Delete transaction"
                             >
                               <span className="material-symbols-outlined text-[17px]">delete</span>
@@ -343,10 +343,10 @@ export const MoneyView: React.FC = () => {
                 return (
                   <div
                     key={tx.id}
-                    className="p-3 rounded-xl bg-surface-container-low border border-surface-container flex items-center justify-between gap-3"
+                    className="p-3 rounded-xl bg-surface-container-low border border-outline-variant flex items-center justify-between gap-3"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-surface-container-high text-primary flex items-center justify-center flex-shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-primary-fixed text-primary-ink flex items-center justify-center flex-shrink-0">
                         <span className="material-symbols-outlined text-[20px]">{icon}</span>
                       </div>
                       <div className="truncate">
@@ -362,13 +362,13 @@ export const MoneyView: React.FC = () => {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <div className="text-right">
                         <span
-                          className={`font-title-sm text-sm font-bold block ${
+                          className={`font-title-sm text-sm font-bold block tabular-nums ${
                             isZero
-                              ? 'text-primary'
+                              ? 'text-primary-ink'
                               : isIncome
-                              ? 'text-emerald-600 dark:text-emerald-400'
+                              ? 'text-primary-ink'
                               : isTransfer
-                              ? 'text-blue-600 dark:text-blue-400'
+                              ? 'text-tertiary'
                               : 'text-on-surface'
                           }`}
                         >
@@ -388,7 +388,7 @@ export const MoneyView: React.FC = () => {
                       </button>
                       <button
                         onClick={() => setTxToDelete(tx.id)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/20 transition-colors"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/25 transition-colors"
                         title="Delete transaction"
                       >
                         <span className="material-symbols-outlined text-[17px]">delete</span>
@@ -405,8 +405,8 @@ export const MoneyView: React.FC = () => {
       {/* Edit Transaction Modal */}
       {editingTx && (
         <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-surface-container-lowest border border-surface-container-high w-full max-w-md rounded-2xl p-5 shadow-2xl flex flex-col gap-3.5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-2 border-b border-surface-container">
+          <div className="bg-surface-container-lowest border border-outline-variant w-full max-w-md rounded-2xl p-5 shadow-2xl flex flex-col gap-3.5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-2 border-b border-outline-variant">
               <h3 className="font-headline-md text-base sm:text-lg text-on-surface font-bold">
                 Edit Transaction
               </h3>
@@ -435,7 +435,7 @@ export const MoneyView: React.FC = () => {
                   type="text"
                   value={editingTx.description}
                   onChange={(e) => setEditingTx({ ...editingTx, description: e.target.value })}
-                  className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none"
+                  className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-sm outline-none"
                 />
               </div>
 
@@ -451,7 +451,7 @@ export const MoneyView: React.FC = () => {
                     step="any"
                     value={editingTx.amount}
                     onChange={(e) => setEditingTx({ ...editingTx, amount: Number(e.target.value) || 0 })}
-                    className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-sm outline-none"
+                    className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-sm outline-none tabular-nums"
                   />
                 </div>
 
@@ -464,7 +464,7 @@ export const MoneyView: React.FC = () => {
                     type="date"
                     value={editingTx.date}
                     onChange={(e) => setEditingTx({ ...editingTx, date: e.target.value })}
-                    className="w-full h-10 px-2 bg-surface-container-low rounded-xl text-on-surface text-xs outline-none"
+                    className="w-full h-10 px-2 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-xs outline-none"
                   />
                 </div>
               </div>
@@ -478,7 +478,7 @@ export const MoneyView: React.FC = () => {
                     <select
                       value={editingTx.paymentSource || 'UPI'}
                       onChange={(e) => setEditingTx({ ...editingTx, paymentSource: e.target.value as PaymentSource })}
-                      className="w-full h-10 px-2.5 bg-surface-container-low rounded-xl text-on-surface text-xs font-semibold outline-none"
+                      className="w-full h-10 px-2.5 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-xs font-semibold outline-none"
                     >
                       <option value="UPI">UPI (Liquid debit)</option>
                       <option value="Cash">Cash (Liquid debit)</option>
@@ -494,7 +494,7 @@ export const MoneyView: React.FC = () => {
                       type="text"
                       value={editingTx.category}
                       onChange={(e) => setEditingTx({ ...editingTx, category: e.target.value as ExpenseCategory })}
-                      className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-xs outline-none"
+                      className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-xs outline-none"
                     />
                   </div>
                 </div>
@@ -508,7 +508,7 @@ export const MoneyView: React.FC = () => {
                   <select
                     value={editingTx.destination || 'UPI'}
                     onChange={(e) => setEditingTx({ ...editingTx, destination: e.target.value as IncomeDestination })}
-                    className="w-full h-10 px-2.5 bg-surface-container-low rounded-xl text-on-surface text-xs font-semibold outline-none"
+                    className="w-full h-10 px-2.5 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-xs font-semibold outline-none"
                   >
                     <option value="UPI">UPI Account</option>
                     <option value="Cash">Physical Cash</option>
@@ -525,7 +525,7 @@ export const MoneyView: React.FC = () => {
                     <select
                       value={editingTx.transferFrom || 'UPI'}
                       onChange={(e) => setEditingTx({ ...editingTx, transferFrom: e.target.value as 'UPI' | 'Cash' })}
-                      className="w-full h-10 px-2.5 bg-surface-container-low rounded-xl text-on-surface text-xs font-semibold outline-none"
+                      className="w-full h-10 px-2.5 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-xs font-semibold outline-none"
                     >
                       <option value="UPI">UPI</option>
                       <option value="Cash">Cash</option>
@@ -539,7 +539,7 @@ export const MoneyView: React.FC = () => {
                     <select
                       value={editingTx.transferTo || 'Cash'}
                       onChange={(e) => setEditingTx({ ...editingTx, transferTo: e.target.value as 'UPI' | 'Cash' })}
-                      className="w-full h-10 px-2.5 bg-surface-container-low rounded-xl text-on-surface text-xs font-semibold outline-none"
+                      className="w-full h-10 px-2.5 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-xs font-semibold outline-none"
                     >
                       <option value="UPI">UPI</option>
                       <option value="Cash">Cash</option>
@@ -557,7 +557,7 @@ export const MoneyView: React.FC = () => {
                   value={editingTx.notes || ''}
                   onChange={(e) => setEditingTx({ ...editingTx, notes: e.target.value })}
                   placeholder="Optional notes"
-                  className="w-full h-10 px-3 bg-surface-container-low rounded-xl text-on-surface text-xs outline-none"
+                  className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant focus:border-primary rounded-xl text-on-surface text-xs outline-none"
                 />
               </div>
 
@@ -565,13 +565,13 @@ export const MoneyView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setEditingTx(null)}
-                  className="flex-1 h-10 rounded-xl bg-surface-container-high text-on-surface text-xs font-bold"
+                  className="flex-1 h-10 rounded-xl bg-surface-container-high text-on-surface text-xs font-bold hover:bg-surface-container transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 h-10 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm"
+                  className="flex-1 h-10 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm hover:bg-primary-container hover:text-on-primary-container transition-colors"
                 >
                   Save Changes
                 </button>

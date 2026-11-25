@@ -18,6 +18,14 @@ import {
 import { storage, INITIAL_PROFILE } from '../services/storage';
 import { getSupabaseConfig, getSupabaseClient } from '../services/supabaseClient';
 import { supabaseService } from '../services/supabaseService';
+import {
+  AuthRouteMode,
+  AUTH_ROUTES,
+  PROTECTED_ROUTES,
+  isRecoveryUrl,
+  resolveRoute,
+} from '../utils/authRouting';
+import { isDuplicateSignupResponse, mapAuthError, MappedAuthError } from '../utils/authErrors';
 
 interface Toast {
   id: string;
@@ -30,20 +38,29 @@ interface AppContextType {
   theme: AppTheme;
   setTheme: (t: AppTheme) => void;
 
-  // Active navigation
+  // Active navigation & Auth routes
   activeTab: AppNavTab;
   setActiveTab: (tab: AppNavTab) => void;
+  authMode: AuthRouteMode;
+  setAuthMode: (mode: AuthRouteMode) => void;
 
   // Connection & Loading state
   isLoading: boolean;
   isSupabaseConnected: boolean;
+  recheckSupabaseConnection: () => void;
 
   // Auth & Profile
   user: UserProfile;
   isAuthenticated: boolean;
+  isPasswordRecovery: boolean;
+  authError: MappedAuthError | null;
+  clearAuthError: () => void;
+  verificationPendingEmail: string | null;
+  setVerificationPendingEmail: (email: string | null) => void;
   login: (email: string, pass: string) => Promise<boolean>;
-  signup: (email: string, pass: string, name: string, college?: string) => Promise<boolean>;
-  forgotPassword: (email: string) => Promise<void>;
+  signup: (email: string, pass: string, name: string, college?: string) => Promise<{ ok: boolean; needsVerification: boolean }>;
+  resendVerification: (email: string) => Promise<boolean>;
+  forgotPassword: (email: string) => Promise<boolean>;
   resetPassword: (token: string, newPass: string) => Promise<boolean>;
   logout: () => Promise<void>;
   updateProfile: (profile: Partial<UserProfile>) => Promise<void>;
@@ -130,36 +147,62 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const EMPTY_USER: UserProfile = {
+  ...INITIAL_PROFILE,
+  id: '',
+  fullName: 'Student',
+  email: '',
+  avatarUrl: '',
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Theme state
+  // Theme state (default 'light', synced with head anti-flash script)
   const [theme, setThemeState] = useState<AppTheme>(() => {
-    return (localStorage.getItem('lifedesk_theme') as AppTheme) || 'light';
+    const saved = localStorage.getItem('lifedesk_theme') as AppTheme | null;
+    return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'light';
   });
 
-  // Navigation state
-  const [activeTab, setActiveTab] = useState<AppNavTab>('dashboard');
-
-  // Supabase connection & loading status
+  // Auth & Route states — always default unauthenticated until Supabase session verifies
   const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(() => {
     return getSupabaseConfig().isConfigured;
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  // Auth & Profile state
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const config = getSupabaseConfig();
-    // With Supabase enabled, authentication must come from a real session.
-    if (config.isConfigured) return false;
-    return localStorage.getItem('lifedesk_auth') !== 'unauthenticated';
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return isRecoveryUrl(window.location.search, window.location.hash);
   });
-  const [user, setUser] = useState<UserProfile>(() => storage.getProfile());
 
-  // Entity States
-  const [tasks, setTasks] = useState<Task[]>(() => storage.getTasks());
-  const [deadlines, setDeadlines] = useState<Deadline[]>(() => storage.getDeadlines());
-  const [hackathons, setHackathons] = useState<Hackathon[]>(() => storage.getHackathons());
-  const [transactions, setTransactions] = useState<Transaction[]>(() => storage.getTransactions());
-  const [events, setEvents] = useState<CalendarEvent[]>(() => storage.getEvents());
+  const [authMode, setAuthModeState] = useState<AuthRouteMode>(() => {
+    if (typeof window === 'undefined') return 'login';
+    return resolveRoute({
+      isAuthenticated: false,
+      isPasswordRecovery: isRecoveryUrl(window.location.search, window.location.hash),
+      pathname: window.location.pathname,
+      search: window.location.search,
+      hash: window.location.hash,
+    }).authMode;
+  });
+
+  const [activeTab, setActiveTabState] = useState<AppNavTab>(() => {
+    if (typeof window === 'undefined') return 'dashboard';
+    return resolveRoute({
+      isAuthenticated: true,
+      isPasswordRecovery: false,
+      pathname: window.location.pathname,
+    }).activeTab;
+  });
+
+  const [authError, setAuthError] = useState<MappedAuthError | null>(null);
+  const [verificationPendingEmail, setVerificationPendingEmail] = useState<string | null>(null);
+
+  // User & Entity States (clean empty defaults until authenticated session loads user records)
+  const [user, setUser] = useState<UserProfile>(EMPTY_USER);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [deadlines, setDeadlines] = useState<Deadline[]>([]);
+  const [hackathons, setHackathons] = useState<Hackathon[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
 
   // Modal & Toast states
   const [activeModal, setActiveModal] = useState<'none' | 'expense' | 'income' | 'transfer' | 'task' | 'deadline' | 'hackathon' | 'event' | 'balance'>('none');
@@ -170,34 +213,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
+    }, 4500);
   }, []);
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Sync Theme to HTML class
-  const setTheme = (newTheme: AppTheme) => {
+  const clearAuthError = useCallback(() => {
+    setAuthError(null);
+  }, []);
+
+  // Theme management
+  const setTheme = useCallback((newTheme: AppTheme) => {
     setThemeState(newTheme);
     localStorage.setItem('lifedesk_theme', newTheme);
-  };
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
     const applyTheme = () => {
-      if (theme === 'dark') {
+      const isDark = theme === 'dark' || (theme === 'system' && mediaQuery.matches);
+      if (isDark) {
         root.classList.add('dark');
-      } else if (theme === 'light') {
-        root.classList.remove('dark');
       } else {
-        if (mediaQuery.matches) {
-          root.classList.add('dark');
-        } else {
-          root.classList.remove('dark');
-        }
+        root.classList.remove('dark');
+      }
+      const meta = document.getElementById('theme-color-meta');
+      if (meta) {
+        meta.setAttribute('content', isDark ? '#101B19' : '#F4FAF6');
       }
     };
 
@@ -213,46 +259,137 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return () => mediaQuery.removeEventListener('change', handler);
   }, [theme]);
 
-  // Load all user data from Supabase or fallback
-  const loadUserData = useCallback(async (userId: string) => {
-    const client = getSupabaseClient();
-    if (!client) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      const [dbProfile, dbTasks, dbEvents, dbHackathons, dbTransactions] = await Promise.all([
-        supabaseService.getProfile(userId),
-        supabaseService.getTasks(userId),
-        supabaseService.getEvents(userId),
-        supabaseService.getHackathons(userId),
-        supabaseService.getTransactions(userId),
-      ]);
-
-      if (dbProfile) {
-        setUser(dbProfile);
-        storage.setProfile(dbProfile);
-      } else {
-        try {
-          await supabaseService.upsertProfile(userId, user);
-        } catch (profileErr) {
-          console.warn('Could not auto-insert profile into Supabase:', profileErr);
+  // URL navigation helpers & route guard synchronization
+  const syncPathToRoute = useCallback(
+    (nextPath: string, replace = false) => {
+      if (typeof window === 'undefined') return;
+      if (window.location.pathname !== nextPath) {
+        if (replace) {
+          window.history.replaceState(null, '', nextPath);
+        } else {
+          window.history.pushState(null, '', nextPath);
         }
       }
+    },
+    []
+  );
 
-      if (dbTasks) {
-        setTasks(dbTasks);
-        storage.setTasks(dbTasks);
+  const setActiveTab = useCallback(
+    (tab: AppNavTab) => {
+      if (!isAuthenticated) {
+        setAuthModeState('login');
+        syncPathToRoute(AUTH_ROUTES.login, false);
+        return;
+      }
+      const canonical = PROTECTED_ROUTES[tab] || PROTECTED_ROUTES.dashboard;
+      setActiveTabState(tab === 'settings' ? 'profile' : tab);
+      syncPathToRoute(canonical, false);
+    },
+    [isAuthenticated, syncPathToRoute]
+  );
+
+  const setAuthMode = useCallback(
+    (mode: AuthRouteMode) => {
+      setAuthError(null);
+      setAuthModeState(mode);
+      if (mode !== 'reset') {
+        setIsPasswordRecovery(false);
+      }
+      syncPathToRoute(AUTH_ROUTES[mode], false);
+    },
+    [syncPathToRoute]
+  );
+
+  // Enforce route protection whenever auth state or browser history changes
+  useEffect(() => {
+    if (isLoading) return;
+
+    const applyRouteResolution = (replace: boolean) => {
+      const resolved = resolveRoute({
+        isAuthenticated,
+        isPasswordRecovery,
+        pathname: window.location.pathname,
+        search: window.location.search,
+        hash: window.location.hash,
+      });
+
+      if (resolved.area === 'auth') {
+        setAuthModeState(resolved.authMode);
+        if (resolved.shouldRedirect) {
+          // Preserve query/hash on recovery URL until password is reset
+          if (!resolved.authMode || resolved.authMode !== 'reset' || !isRecoveryUrl(window.location.search, window.location.hash)) {
+            syncPathToRoute(resolved.canonicalPath, replace);
+          }
+        }
+      } else {
+        setActiveTabState(resolved.activeTab);
+        if (resolved.shouldRedirect) {
+          syncPathToRoute(resolved.canonicalPath, replace);
+        }
+      }
+    };
+
+    applyRouteResolution(true);
+
+    const onPopState = () => {
+      applyRouteResolution(true);
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [isAuthenticated, isPasswordRecovery, isLoading, syncPathToRoute]);
+
+  // Load user data from Supabase scoped strictly to authenticated userId
+  const loadUserData = useCallback(
+    async (userId: string, fallbackAuthUser?: { email?: string; user_metadata?: Record<string, unknown> }) => {
+      const client = getSupabaseClient();
+      if (!client) {
+        setIsLoading(false);
+        return;
       }
 
-      if (dbEvents) {
-        setEvents(dbEvents);
-        storage.setEvents(dbEvents);
+      try {
+        setIsLoading(true);
+        const [dbProfile, dbTasks, dbEvents, dbHackathons, dbTransactions] = await Promise.all([
+          supabaseService.getProfile(userId),
+          supabaseService.getTasks(userId),
+          supabaseService.getEvents(userId),
+          supabaseService.getHackathons(userId),
+          supabaseService.getTransactions(userId),
+        ]);
 
-        // Derive deadlines from events of type 'deadline'
-        const derivedDeadlines: Deadline[] = dbEvents
+        if (dbProfile) {
+          setUser(dbProfile);
+          storage.setProfile(dbProfile);
+        } else {
+          const metaName =
+            (fallbackAuthUser?.user_metadata?.full_name as string | undefined) ||
+            fallbackAuthUser?.email?.split('@')[0] ||
+            'Student';
+          const fallbackProfile: UserProfile = {
+            ...EMPTY_USER,
+            id: userId,
+            fullName: metaName,
+            email: fallbackAuthUser?.email || '',
+            college: (fallbackAuthUser?.user_metadata?.college as string | undefined) || '',
+          };
+          setUser(fallbackProfile);
+          storage.setProfile(fallbackProfile);
+          try {
+            await supabaseService.upsertProfile(userId, fallbackProfile);
+          } catch (profileErr) {
+            console.warn('Could not auto-insert profile into Supabase:', profileErr);
+          }
+        }
+
+        setTasks(dbTasks || []);
+        storage.setTasks(dbTasks || []);
+
+        const loadedEvents = dbEvents || [];
+        setEvents(loadedEvents);
+        storage.setEvents(loadedEvents);
+
+        const derivedDeadlines: Deadline[] = loadedEvents
           .filter((e) => e.type === 'deadline')
           .map((e) => ({
             id: e.id,
@@ -264,71 +401,119 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }));
         setDeadlines(derivedDeadlines);
         storage.setDeadlines(derivedDeadlines);
-      }
 
-      if (dbHackathons) {
-        setHackathons(dbHackathons);
-        storage.setHackathons(dbHackathons);
-      }
+        setHackathons(dbHackathons || []);
+        storage.setHackathons(dbHackathons || []);
 
-      if (dbTransactions) {
-        setTransactions(dbTransactions);
-        storage.setTransactions(dbTransactions);
+        setTransactions(dbTransactions || []);
+        storage.setTransactions(dbTransactions || []);
+      } catch (err: unknown) {
+        console.warn('Could not sync with Supabase tables:', err);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err: unknown) {
-      console.warn('Could not sync with Supabase tables:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    },
+    []
+  );
 
-  // Initialize Auth & Supabase Session
-  useEffect(() => {
+  const initializeAuthSession = useCallback(async () => {
     const config = getSupabaseConfig();
     setIsSupabaseConnected(config.isConfigured);
 
     const client = getSupabaseClient();
     if (!client) {
+      setIsAuthenticated(false);
       setIsLoading(false);
       return;
     }
 
-    const isRecoveryRedirect = () => {
-      const hash = window.location.hash.toLowerCase();
-      const search = window.location.search.toLowerCase();
-      return hash.includes('type=recovery') || search.includes('type=recovery');
-    };
+    try {
+      setIsLoading(true);
+      const searchParams = new URLSearchParams(window.location.search);
+      const code = searchParams.get('code');
+      const recovery = isRecoveryUrl(window.location.search, window.location.hash);
 
-    client.auth.getSession().then(({ data: { session } }) => {
-      if (isRecoveryRedirect()) {
+      if (code) {
+        try {
+          await supabaseService.exchangeCodeForSession(code);
+        } catch (exchangeErr) {
+          setAuthError(mapAuthError(exchangeErr));
+        }
+      }
+
+      if (recovery) {
+        setIsPasswordRecovery(true);
         setIsAuthenticated(false);
-        localStorage.setItem('lifedesk_auth', 'unauthenticated');
+        setAuthModeState('reset');
         setIsLoading(false);
         return;
       }
+
+      const {
+        data: { session },
+      } = await client.auth.getSession();
+
       if (session?.user) {
         setIsAuthenticated(true);
         localStorage.setItem('lifedesk_auth', 'authenticated');
-        loadUserData(session.user.id);
+        await loadUserData(session.user.id, session.user);
       } else {
         setIsAuthenticated(false);
         localStorage.setItem('lifedesk_auth', 'unauthenticated');
         setIsLoading(false);
       }
-    });
+    } catch (err) {
+      setAuthError(mapAuthError(err));
+      setIsAuthenticated(false);
+      setIsLoading(false);
+    }
+  }, [loadUserData]);
 
-    const { data: { subscription } } = client.auth.onAuthStateChange(async (event, session) => {
+  // Initialize Auth session on mount
+  useEffect(() => {
+    initializeAuthSession();
+  }, [initializeAuthSession]);
+
+  // Subscribe to Supabase auth state changes whenever a valid client is connected
+  useEffect(() => {
+    if (!isSupabaseConnected) return;
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange(async (event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
         setIsAuthenticated(false);
-        localStorage.setItem('lifedesk_auth', 'unauthenticated');
+        setAuthModeState('reset');
+        syncPathToRoute(AUTH_ROUTES.reset, true);
         setIsLoading(false);
       } else if (event === 'SIGNED_IN' && session?.user) {
+        if (isRecoveryUrl(window.location.search, window.location.hash)) {
+          setIsPasswordRecovery(true);
+          setIsAuthenticated(false);
+          setAuthModeState('reset');
+          setIsLoading(false);
+          return;
+        }
+        setIsPasswordRecovery(false);
         setIsAuthenticated(true);
+        setAuthError(null);
+        setVerificationPendingEmail(null);
         localStorage.setItem('lifedesk_auth', 'authenticated');
-        loadUserData(session.user.id);
+        loadUserData(session.user.id, session.user);
       } else if (event === 'SIGNED_OUT') {
+        setIsPasswordRecovery(false);
         setIsAuthenticated(false);
         localStorage.setItem('lifedesk_auth', 'unauthenticated');
+        setUser(EMPTY_USER);
+        setTasks([]);
+        setDeadlines([]);
+        setHackathons([]);
+        setTransactions([]);
+        setEvents([]);
+        storage.clearUserDataCache();
         setIsLoading(false);
       }
     });
@@ -336,15 +521,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return () => {
       subscription.unsubscribe();
     };
-  }, [loadUserData]);
+  }, [isSupabaseConnected, loadUserData, syncPathToRoute]);
+
+  const recheckSupabaseConnection = useCallback(() => {
+    initializeAuthSession();
+  }, [initializeAuthSession]);
 
   // Realtime subscription setup when authenticated
   useEffect(() => {
     const client = getSupabaseClient();
     if (!client || !isAuthenticated || !user.id) return;
 
-    const unsubscribe = supabaseService.subscribeToUserData(user.id, (table) => {
-      console.log(`[Supabase Realtime] Event received on table: ${table}`);
+    const unsubscribe = supabaseService.subscribeToUserData(user.id, () => {
       loadUserData(user.id);
     });
 
@@ -355,79 +543,122 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Auth functions
   const login = async (email: string, pass: string): Promise<boolean> => {
+    setAuthError(null);
     const client = getSupabaseClient();
     if (!client) {
-      showToast('Authentication is unavailable because Supabase is not configured.', 'error');
+      const mapped = mapAuthError(new Error('Supabase client is not configured.'));
+      setAuthError(mapped);
+      showToast(mapped.message, 'error');
       return false;
     }
 
     try {
-      setIsLoading(true);
       const { user: authUser, session } = await supabaseService.signIn(email.trim(), pass);
 
       if (!authUser || !session) {
         throw new Error('Sign in did not create a valid session. Please try again.');
       }
 
+      setIsPasswordRecovery(false);
       setIsAuthenticated(true);
+      setVerificationPendingEmail(null);
       localStorage.setItem('lifedesk_auth', 'authenticated');
-      await loadUserData(authUser.id);
+      await loadUserData(authUser.id, authUser);
+      setActiveTabState('dashboard');
+      syncPathToRoute(PROTECTED_ROUTES.dashboard, true);
       showToast(`Welcome back, ${authUser.email?.split('@')[0] || 'Student'}!`, 'success');
       return true;
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Invalid email or password';
-      const normalized = message.toLowerCase();
-      if (normalized.includes('email not confirmed')) {
-        showToast('Please confirm your email address before signing in.', 'error');
-      } else if (normalized.includes('invalid login credentials')) {
-        showToast('Invalid email or password. If you forgot it, use Forgot Password.', 'error');
-      } else {
-        showToast(message, 'error');
+      const mapped = mapAuthError(err);
+      setAuthError(mapped);
+      if (mapped.code === 'email_not_confirmed') {
+        setVerificationPendingEmail(email.trim());
       }
-      setIsLoading(false);
+      showToast(mapped.message, 'error');
       return false;
     }
   };
 
-  const signup = async (email: string, pass: string, name: string, college?: string): Promise<boolean> => {
+  const signup = async (
+    email: string,
+    pass: string,
+    name: string,
+    college?: string
+  ): Promise<{ ok: boolean; needsVerification: boolean }> => {
+    setAuthError(null);
     const client = getSupabaseClient();
     if (!client) {
-      showToast('Authentication is unavailable because Supabase is not configured.', 'error');
-      return false;
+      const mapped = mapAuthError(new Error('Supabase client is not configured.'));
+      setAuthError(mapped);
+      showToast(mapped.message, 'error');
+      return { ok: false, needsVerification: false };
     }
 
     try {
-      setIsLoading(true);
-      const { user: newUser, session } = await supabaseService.signUp(email.trim(), pass, name, college);
+      const cleanEmail = email.trim();
+      const data = await supabaseService.signUp(cleanEmail, pass, name.trim(), college?.trim());
 
+      if (isDuplicateSignupResponse(data)) {
+        const dupErr = mapAuthError(new Error('User already registered'));
+        setAuthError(dupErr);
+        showToast(dupErr.message, 'error');
+        return { ok: false, needsVerification: false };
+      }
+
+      const { user: newUser, session } = data;
       if (!newUser) {
         throw new Error('Account could not be created. Please try again.');
       }
 
       if (!session) {
-        showToast('Account created. Please confirm your email, then sign in.', 'info');
-        setIsLoading(false);
-        return false;
+        setVerificationPendingEmail(cleanEmail);
+        showToast('Verification email sent. Confirm your email to sign in.', 'info');
+        return { ok: true, needsVerification: true };
       }
 
+      setIsPasswordRecovery(false);
       setIsAuthenticated(true);
       localStorage.setItem('lifedesk_auth', 'authenticated');
       const newProfile: UserProfile = {
-        ...INITIAL_PROFILE,
+        ...EMPTY_USER,
         id: newUser.id,
-        fullName: name,
-        email: email.trim(),
-        college: college || INITIAL_PROFILE.college,
+        fullName: name.trim(),
+        email: cleanEmail,
+        college: college?.trim() || '',
       };
       setUser(newProfile);
       storage.setProfile(newProfile);
-      await loadUserData(newUser.id);
-      showToast(`Welcome to LifeDesk, ${name}!`, 'success');
+      await loadUserData(newUser.id, newUser);
+      setActiveTabState('dashboard');
+      syncPathToRoute(PROTECTED_ROUTES.dashboard, true);
+      showToast(`Welcome to LifeDesk, ${name.trim()}!`, 'success');
+      return { ok: true, needsVerification: false };
+    } catch (err: unknown) {
+      const mapped = mapAuthError(err);
+      setAuthError(mapped);
+      showToast(mapped.message, 'error');
+      return { ok: false, needsVerification: false };
+    }
+  };
+
+  const resendVerification = async (email: string): Promise<boolean> => {
+    setAuthError(null);
+    const client = getSupabaseClient();
+    if (!client) {
+      const mapped = mapAuthError(new Error('Supabase client is not configured.'));
+      setAuthError(mapped);
+      showToast(mapped.message, 'error');
+      return false;
+    }
+
+    try {
+      await supabaseService.resendVerificationEmail(email.trim());
+      showToast(`Verification email resent to ${email.trim()}`, 'success');
       return true;
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Sign up failed';
-      showToast(message, 'error');
-      setIsLoading(false);
+      const mapped = mapAuthError(err);
+      setAuthError(mapped);
+      showToast(mapped.message, 'error');
       return false;
     }
   };
@@ -441,56 +672,70 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.warn('Sign out warning:', err);
       }
     }
+    setIsPasswordRecovery(false);
     setIsAuthenticated(false);
+    setVerificationPendingEmail(null);
+    setAuthError(null);
     localStorage.setItem('lifedesk_auth', 'unauthenticated');
-    setUser(INITIAL_PROFILE);
+    setUser(EMPTY_USER);
     setTasks([]);
     setDeadlines([]);
     setHackathons([]);
     setTransactions([]);
     setEvents([]);
-    storage.setTasks([]);
-    storage.setDeadlines([]);
-    storage.setHackathons([]);
-    storage.setTransactions([]);
-    storage.setEvents([]);
+    storage.clearUserDataCache();
+    setAuthModeState('login');
+    syncPathToRoute(AUTH_ROUTES.login, true);
     showToast('Signed out of LifeDesk session.', 'info');
   };
 
-  const forgotPassword = async (email: string) => {
+  const forgotPassword = async (email: string): Promise<boolean> => {
+    setAuthError(null);
     const client = getSupabaseClient();
-    if (client) {
-      try {
-        await supabaseService.resetPasswordForEmail(email);
-        showToast(`Password reset link sent to ${email}`, 'success');
-        return;
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Password reset failed';
-        showToast(message, 'error');
-        return;
-      }
+    if (!client) {
+      const mapped = mapAuthError(new Error('Supabase client is not configured.'));
+      setAuthError(mapped);
+      showToast(mapped.message, 'error');
+      return false;
     }
 
-    const dummyToken = `RESET-${Math.floor(100000 + Math.random() * 900000)}`;
-    showToast(`Reset code generated: ${dummyToken} (sent to ${email})`, 'info');
+    try {
+      await supabaseService.resetPasswordForEmail(email.trim());
+      showToast(`Password reset link sent to ${email.trim()}`, 'success');
+      return true;
+    } catch (err: unknown) {
+      const mapped = mapAuthError(err);
+      setAuthError(mapped);
+      showToast(mapped.message, 'error');
+      return false;
+    }
   };
 
   const resetPassword = async (_token: string, newPass: string): Promise<boolean> => {
+    setAuthError(null);
     const client = getSupabaseClient();
-    if (client) {
-      try {
-        await supabaseService.updateUserPassword(newPass);
-        showToast('Password updated securely in Supabase Auth!', 'success');
-        return true;
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Could not update password';
-        showToast(message, 'error');
-        return false;
-      }
+    if (!client) {
+      const mapped = mapAuthError(new Error('Supabase client is not configured.'));
+      setAuthError(mapped);
+      showToast(mapped.message, 'error');
+      return false;
     }
 
-    showToast('Password has been updated!', 'success');
-    return true;
+    try {
+      await supabaseService.updateUserPassword(newPass);
+      setIsPasswordRecovery(false);
+      // Clean recovery tokens out of the URL after successful update
+      if (window.location.hash || window.location.search) {
+        window.history.replaceState(null, '', AUTH_ROUTES.login);
+      }
+      showToast('Password updated securely! Sign in with your new password.', 'success');
+      return true;
+    } catch (err: unknown) {
+      const mapped = mapAuthError(err);
+      setAuthError(mapped);
+      showToast(mapped.message, 'error');
+      return false;
+    }
   };
 
   const deleteAccount = async () => {
@@ -498,8 +743,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (client && user.id) {
       try {
-        // Auth account deletion must happen server-side using the Supabase service-role key.
-        // The Edge Function validates the current session before deleting auth.users.
         const { error } = await client.functions.invoke('delete-account');
 
         if (error) {
@@ -516,9 +759,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     }
 
-    localStorage.clear();
+    storage.clearUserDataCache();
+    localStorage.removeItem('lifedesk_auth');
+    setIsAuthenticated(false);
+    setUser(EMPTY_USER);
     showToast('Your LifeDesk account and data have been deleted.', 'success');
-    window.location.reload();
+    syncPathToRoute(AUTH_ROUTES.login, true);
   };
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
@@ -563,7 +809,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTasks(nextTasks);
     storage.setTasks(nextTasks);
 
-    // Auto-create calendar event representation
     const newEvent: CalendarEvent = {
       id: `evt-task-${newTask.id}`,
       title: newTask.name,
@@ -606,9 +851,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     const client = getSupabaseClient();
-    if (client) {
+    if (client && user.id) {
       try {
-        await supabaseService.updateTask(id, updates);
+        await supabaseService.updateTask(id, updates, user.id);
       } catch (err) {
         console.warn('Supabase task update fallback:', err);
       }
@@ -626,9 +871,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     storage.setEvents(nextEvents);
 
     const client = getSupabaseClient();
-    if (client) {
+    if (client && user.id) {
       try {
-        await supabaseService.deleteTask(id);
+        await supabaseService.deleteTask(id, user.id);
       } catch (err) {
         console.warn('Supabase task delete fallback:', err);
       }
@@ -715,15 +960,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     const client = getSupabaseClient();
-    if (client) {
+    if (client && user.id) {
       try {
-        await supabaseService.updateEvent(id, {
-          title: updates.title,
-          description: updates.description,
-          category: updates.category,
-          startDate: updates.dueDate?.split('T')[0],
-          startTime: updates.dueDate?.includes('T') ? updates.dueDate.split('T')[1].substring(0, 5) : undefined,
-        });
+        await supabaseService.updateEvent(
+          id,
+          {
+            title: updates.title,
+            description: updates.description,
+            category: updates.category,
+            startDate: updates.dueDate?.split('T')[0],
+            startTime: updates.dueDate?.includes('T') ? updates.dueDate.split('T')[1].substring(0, 5) : undefined,
+          },
+          user.id
+        );
       } catch (err) {
         console.warn('Supabase deadline update fallback:', err);
       }
@@ -741,9 +990,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     storage.setEvents(nextEvents);
 
     const client = getSupabaseClient();
-    if (client) {
+    if (client && user.id) {
       try {
-        await supabaseService.deleteEvent(id);
+        await supabaseService.deleteEvent(id, user.id);
       } catch (err) {
         console.warn('Supabase deadline delete fallback:', err);
       }
@@ -781,9 +1030,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     storage.setHackathons(next);
 
     const client = getSupabaseClient();
-    if (client) {
+    if (client && user.id) {
       try {
-        await supabaseService.updateHackathon(id, updates);
+        await supabaseService.updateHackathon(id, updates, user.id);
       } catch (err) {
         console.warn('Supabase hackathon update fallback:', err);
       }
@@ -797,9 +1046,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     storage.setHackathons(next);
 
     const client = getSupabaseClient();
-    if (client) {
+    if (client && user.id) {
       try {
-        await supabaseService.deleteHackathon(id);
+        await supabaseService.deleteHackathon(id, user.id);
       } catch (err) {
         console.warn('Supabase hackathon delete fallback:', err);
       }
@@ -834,9 +1083,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     storage.setHackathons(next);
 
     const client = getSupabaseClient();
-    if (client) {
+    if (client && user.id) {
       try {
-        await supabaseService.updateMilestoneStatus(milestoneId, targetStatus);
+        await supabaseService.updateMilestoneStatus(milestoneId, targetStatus, user.id);
       } catch (err) {
         console.warn('Supabase milestone status update fallback:', err);
       }
@@ -891,9 +1140,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     storage.setHackathons(next);
 
     const client = getSupabaseClient();
-    if (client) {
+    if (client && user.id) {
       try {
-        await supabaseService.updateMilestone(milestoneId, updates);
+        await supabaseService.updateMilestone(milestoneId, updates, user.id);
       } catch (err) {
         console.warn('Supabase milestone update fallback:', err);
       }
@@ -913,9 +1162,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     storage.setHackathons(next);
 
     const client = getSupabaseClient();
-    if (client) {
+    if (client && user.id) {
       try {
-        await supabaseService.deleteMilestone(milestoneId);
+        await supabaseService.deleteMilestone(milestoneId, user.id);
       } catch (err) {
         console.warn('Supabase milestone delete fallback:', err);
       }
@@ -953,9 +1202,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     storage.setEvents(next);
 
     const client = getSupabaseClient();
-    if (client) {
+    if (client && user.id) {
       try {
-        await supabaseService.updateEvent(id, updates);
+        await supabaseService.updateEvent(id, updates, user.id);
       } catch (err) {
         console.warn('Supabase event update fallback:', err);
       }
@@ -969,9 +1218,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     storage.setEvents(next);
 
     const client = getSupabaseClient();
-    if (client) {
+    if (client && user.id) {
       try {
-        await supabaseService.deleteEvent(id);
+        await supabaseService.deleteEvent(id, user.id);
       } catch (err) {
         console.warn('Supabase event delete fallback:', err);
       }
@@ -982,17 +1231,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // ==========================================
   // MONEY LOGIC & TRANSACTIONS (Single Source of Truth)
   // ==========================================
-  /**
-   * Money logic rules strictly enforced:
-   * 1. Available Money = UPI balance + Cash balance
-   * 2. Card expenses must NOT reduce UPI or Cash
-   * 3. Card expenses MUST count toward total monthly expenses
-   * 4. Income increases either UPI or Cash
-   * 5. Transfers between UPI and Cash must not count as expenses
-   * 6. Transfers must not change total available money
-   * 7. Editing/deleting a transaction must correctly recalculate dependent totals
-   * 8. Keep transactions as the source of truth rather than storing conflicting derived totals.
-   */
   const treasuryMetrics = useMemo(() => {
     let upiBalance = 0;
     let cashBalance = 0;
@@ -1014,28 +1252,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (tx.type === 'expense') {
         totalExpenses += amount;
         if (isThisMonth) {
-          // Card expenses MUST count toward total monthly expenses!
           monthExpenses += amount;
         }
         if (src === 'card') {
-          // Card expenses must NOT reduce UPI or Cash
           cardSpending += amount;
         } else if (src === 'cash') {
           cashBalance -= amount;
         } else {
-          // Default upi
           upiBalance -= amount;
         }
       } else if (tx.type === 'income') {
-        // Income increases either UPI or Cash
         if (dest === 'cash') {
           cashBalance += amount;
         } else {
           upiBalance += amount;
         }
       } else if (tx.type === 'transfer') {
-        // Transfers between UPI and Cash must not count as expenses
-        // Transfers must not change total available money
         if (from === 'upi' && to === 'cash') {
           upiBalance -= amount;
           cashBalance += amount;
@@ -1218,9 +1450,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     storage.setTransactions(nextTx);
 
     const client = getSupabaseClient();
-    if (client) {
+    if (client && user.id) {
       try {
-        await supabaseService.updateTransaction(id, updated);
+        await supabaseService.updateTransaction(id, updated, user.id);
       } catch (err) {
         console.warn('Supabase transaction update fallback:', err);
       }
@@ -1234,9 +1466,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     storage.setTransactions(nextTx);
 
     const client = getSupabaseClient();
-    if (client) {
+    if (client && user.id) {
       try {
-        await supabaseService.deleteTransaction(id);
+        await supabaseService.deleteTransaction(id, user.id);
       } catch (err) {
         console.warn('Supabase transaction delete fallback:', err);
       }
@@ -1244,14 +1476,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast('Transaction removed & balance recalculated', 'info');
   };
 
-  /**
-   * Balance calibration without violating transaction single source of truth:
-   * Adds an explicit calibration adjustment transaction to align current derived balance with target.
-   */
   const setBalancesManual = async (targetUpi: number, targetCash: number) => {
     const upiDiff = targetUpi - balances.upiBalance;
     const cashDiff = targetCash - balances.cashBalance;
-
     const today = new Date().toISOString().split('T')[0];
 
     if (Math.abs(upiDiff) > 0.01) {
@@ -1317,12 +1544,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setTheme,
         activeTab,
         setActiveTab,
+        authMode,
+        setAuthMode,
         isLoading,
         isSupabaseConnected,
+        recheckSupabaseConnection,
         user,
         isAuthenticated,
+        isPasswordRecovery,
+        authError,
+        clearAuthError,
+        verificationPendingEmail,
+        setVerificationPendingEmail,
         login,
         signup,
+        resendVerification,
         forgotPassword,
         logout,
         updateProfile,

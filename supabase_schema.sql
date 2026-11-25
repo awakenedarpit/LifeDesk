@@ -34,9 +34,15 @@ CREATE TABLE IF NOT EXISTS public.tasks (
   status TEXT NOT NULL DEFAULT 'Not Started' CHECK (status IN ('Not Started', 'In Progress', 'Completed')),
   notes TEXT DEFAULT '',
   tags TEXT[] DEFAULT ARRAY[]::TEXT[],
+  participation_type TEXT NOT NULL DEFAULT 'Individual' CHECK (participation_type IN ('Individual', 'Team')),
+  team_name TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.tasks
+  ADD COLUMN IF NOT EXISTS participation_type TEXT NOT NULL DEFAULT 'Individual',
+  ADD COLUMN IF NOT EXISTS team_name TEXT;
 
 -- 3. Events Table (Calendar Events & Deadlines)
 CREATE TABLE IF NOT EXISTS public.events (
@@ -65,9 +71,15 @@ CREATE TABLE IF NOT EXISTS public.hackathons (
   deliverable TEXT DEFAULT '',
   banner_image TEXT DEFAULT '',
   notes TEXT DEFAULT '',
+  participation_type TEXT NOT NULL DEFAULT 'Individual' CHECK (participation_type IN ('Individual', 'Team')),
+  team_name TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.hackathons
+  ADD COLUMN IF NOT EXISTS participation_type TEXT NOT NULL DEFAULT 'Individual',
+  ADD COLUMN IF NOT EXISTS team_name TEXT;
 
 -- 5. Hackathon Milestones Table
 CREATE TABLE IF NOT EXISTS public.hackathon_milestones (
@@ -102,6 +114,23 @@ CREATE TABLE IF NOT EXISTS public.transactions (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 7. Learning Items Table (Things to Learn)
+CREATE TABLE IF NOT EXISTS public.learning_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  topic TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'AI / ML',
+  status TEXT NOT NULL DEFAULT 'To Learn' CHECK (status IN ('To Learn', 'Learning', 'Learned')),
+  priority TEXT NOT NULL DEFAULT 'Medium' CHECK (priority IN ('Low', 'Medium', 'High')),
+  source TEXT,
+  resource_url TEXT,
+  note TEXT,
+  personal_notes TEXT,
+  learned_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ========================================================
 -- Row Level Security (RLS) - Complete User Data Isolation
 -- ========================================================
@@ -111,39 +140,84 @@ ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.hackathons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.hackathon_milestones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.learning_items ENABLE ROW LEVEL SECURITY;
 
 -- Profiles Policies
 DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
-CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can view own profile"
+  ON public.profiles FOR SELECT
+  USING (auth.uid() = id);
 
 DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
-CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can insert own profile"
+  ON public.profiles FOR INSERT
+  WITH CHECK (auth.uid() = id);
 
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile"
+  ON public.profiles FOR UPDATE
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
 
 DROP POLICY IF EXISTS "Users can delete own profile" ON public.profiles;
-CREATE POLICY "Users can delete own profile" ON public.profiles FOR DELETE USING (auth.uid() = id);
+CREATE POLICY "Users can delete own profile"
+  ON public.profiles FOR DELETE
+  USING (auth.uid() = id);
 
 -- Tasks Policies
 DROP POLICY IF EXISTS "Users can manage own tasks" ON public.tasks;
-CREATE POLICY "Users can manage own tasks" ON public.tasks FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can manage own tasks"
+  ON public.tasks FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 -- Events Policies
 DROP POLICY IF EXISTS "Users can manage own events" ON public.events;
-CREATE POLICY "Users can manage own events" ON public.events FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can manage own events"
+  ON public.events FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 -- Hackathons Policies
 DROP POLICY IF EXISTS "Users can manage own hackathons" ON public.hackathons;
-CREATE POLICY "Users can manage own hackathons" ON public.hackathons FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can manage own hackathons"
+  ON public.hackathons FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
--- Milestones Policies
+-- Milestones Policies (Verify ownership of both milestone and parent hackathon/task)
 DROP POLICY IF EXISTS "Users can manage own milestones" ON public.hackathon_milestones;
-CREATE POLICY "Users can manage own milestones" ON public.hackathon_milestones FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can manage own milestones"
+  ON public.hackathon_milestones FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (
+    auth.uid() = user_id
+    AND EXISTS (
+      SELECT 1 FROM public.hackathons h
+      WHERE h.id = hackathon_id AND h.user_id = auth.uid()
+    )
+    AND (
+      associated_task_id IS NULL
+      OR EXISTS (
+        SELECT 1 FROM public.tasks t
+        WHERE t.id = associated_task_id AND t.user_id = auth.uid()
+      )
+    )
+  );
 
 -- Transactions Policies
 DROP POLICY IF EXISTS "Users can manage own transactions" ON public.transactions;
-CREATE POLICY "Users can manage own transactions" ON public.transactions FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can manage own transactions"
+  ON public.transactions FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- Learning Items Policies
+DROP POLICY IF EXISTS "Users can manage own learning items" ON public.learning_items;
+CREATE POLICY "Users can manage own learning items"
+  ON public.learning_items FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 -- ========================================================
 -- Automatic Profile Creation Trigger on Auth Sign-Up
@@ -154,22 +228,22 @@ BEGIN
   INSERT INTO public.profiles (id, full_name, email, phone, college, course, year, semester, bio, avatar_url)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', SPLIT_PART(NEW.email, '@', 1)),
+    COALESCE(NULLIF(NEW.raw_user_meta_data->>'full_name', ''), SPLIT_PART(NEW.email, '@', 1)),
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'phone', ''),
-    COALESCE(NEW.raw_user_meta_data->>'college', 'Indore Institute of Science and Technology'),
+    COALESCE(NEW.raw_user_meta_data->>'college', ''),
     COALESCE(NEW.raw_user_meta_data->>'course', 'B.Tech - Artificial Intelligence and Machine Learning'),
     COALESCE(NEW.raw_user_meta_data->>'year', '1st Year'),
     COALESCE(NEW.raw_user_meta_data->>'semester', 'Sem 1'),
     COALESCE(NEW.raw_user_meta_data->>'bio', ''),
-    COALESCE(NEW.raw_user_meta_data->>'avatar_url', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80')
+    COALESCE(NEW.raw_user_meta_data->>'avatar_url', '')
   )
   ON CONFLICT (id) DO UPDATE
   SET email = EXCLUDED.email,
       updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -180,10 +254,22 @@ CREATE TRIGGER on_auth_user_created
 -- Enable Supabase Realtime for Multi-device Synchronization
 -- ========================================================
 DO $$
+DECLARE
+  tbl TEXT;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
     CREATE PUBLICATION supabase_realtime;
   END IF;
-END $$;
 
-ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles, public.tasks, public.events, public.hackathons, public.hackathon_milestones, public.transactions;
+  FOREACH tbl IN ARRAY ARRAY['profiles', 'tasks', 'events', 'hackathons', 'hackathon_milestones', 'transactions', 'learning_items']
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_publication_tables
+      WHERE pubname = 'supabase_realtime'
+        AND schemaname = 'public'
+        AND tablename = tbl
+    ) THEN
+      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', tbl);
+    END IF;
+  END LOOP;
+END $$;

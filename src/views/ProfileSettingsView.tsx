@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
+import { UserAvatar } from '../components/UserAvatar';
+import { AppTheme } from '../types';
 
 export const ProfileSettingsView: React.FC = () => {
   const {
     user,
+    theme,
+    setTheme,
     updateProfile,
     logout,
     deleteAccount,
@@ -119,8 +123,8 @@ export const ProfileSettingsView: React.FC = () => {
       </div>
 
       {/* Security Banner */}
-      <div className="p-3.5 rounded-xl bg-surface-container-low border border-surface-container flex items-start gap-3 text-xs">
-        <span className="material-symbols-outlined text-primary text-[20px] mt-0.5 flex-shrink-0">
+      <div className="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant flex items-start gap-3 text-xs">
+        <span className="material-symbols-outlined text-primary-ink text-[20px] mt-0.5 flex-shrink-0">
           security
         </span>
         <div className="text-on-surface-variant leading-relaxed">
@@ -130,20 +134,21 @@ export const ProfileSettingsView: React.FC = () => {
       </div>
 
       {/* Main Profile Card */}
-      <div className="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container shadow-sm flex flex-col gap-4">
+      <div className="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant shadow-sm flex flex-col gap-4">
         {/* Avatar & Header */}
-        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pb-4 border-b border-surface-container">
-          <img
-            src={avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80'}
-            alt={fullName}
-            className="w-20 h-20 rounded-2xl object-cover ring-2 ring-primary/40 shadow-sm flex-shrink-0"
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pb-4 border-b border-outline-variant">
+          <UserAvatar
+            src={avatarUrl || user.avatarUrl}
+            name={fullName || user.fullName}
+            className="w-20 h-20 rounded-2xl ring-2 ring-primary/40 shadow-sm"
+            textClassName="text-2xl"
           />
 
           <div className="flex-1 text-center sm:text-left min-w-0">
             <h2 className="font-headline-md text-headline-md text-on-surface font-bold">
               {user.fullName}
             </h2>
-            <p className="font-body-sm text-primary font-medium">
+            <p className="font-body-sm text-primary-ink font-semibold">
               {user.course}
             </p>
             <p className="text-xs text-on-surface-variant mt-0.5">
@@ -154,7 +159,7 @@ export const ProfileSettingsView: React.FC = () => {
           {!isEditing ? (
             <button
               onClick={() => setIsEditing(true)}
-              className="h-9 px-4 bg-primary text-on-primary rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm hover:bg-primary-container transition-colors"
+              className="h-9 px-4 bg-primary text-on-primary rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm hover:bg-primary-container hover:text-on-primary-container transition-colors"
             >
               <span className="material-symbols-outlined text-[16px]">edit</span>
               <span>Edit Profile</span>
@@ -163,13 +168,13 @@ export const ProfileSettingsView: React.FC = () => {
             <div className="flex gap-2">
               <button
                 onClick={handleCancel}
-                className="h-9 px-3 bg-surface-container-high text-on-surface rounded-xl text-xs font-semibold"
+                className="h-9 px-3 bg-surface-container-high text-on-surface rounded-xl text-xs font-semibold hover:bg-surface-container transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveProfile}
-                className="h-9 px-4 bg-primary text-on-primary rounded-xl text-xs font-semibold shadow-sm"
+                className="h-9 px-4 bg-primary text-on-primary rounded-xl text-xs font-semibold shadow-sm hover:bg-primary-container hover:text-on-primary-container transition-colors"
               >
                 Save Changes
               </button>
@@ -372,13 +377,13 @@ export const ProfileSettingsView: React.FC = () => {
               <button
                 type="button"
                 onClick={handleCancel}
-                className="h-9 px-4 rounded-lg bg-surface-container-high text-on-surface text-xs font-semibold"
+                className="h-9 px-4 rounded-lg bg-surface-container-high text-on-surface text-xs font-semibold hover:bg-surface-container transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="h-9 px-5 rounded-lg bg-primary text-on-primary text-xs font-semibold shadow-sm"
+                className="h-9 px-5 rounded-lg bg-primary text-on-primary text-xs font-semibold shadow-sm hover:bg-primary-container hover:text-on-primary-container transition-colors"
               >
                 Save Changes
               </button>
@@ -387,11 +392,61 @@ export const ProfileSettingsView: React.FC = () => {
         )}
       </div>
 
+      {/* Appearance & Mint Theme Preference */}
+      <div className="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="w-9 h-9 rounded-xl bg-primary-fixed text-primary-ink flex items-center justify-center flex-shrink-0">
+            <span className="material-symbols-outlined text-[20px]">palette</span>
+          </span>
+          <div className="min-w-0">
+            <h3 className="font-title-sm text-title-sm text-on-surface font-bold">
+              Appearance &amp; Theme
+            </h3>
+            <p className="text-xs text-on-surface-variant">
+              Switch between Mint Light, Mint Dark, or automatically match your device theme.
+            </p>
+          </div>
+        </div>
+
+        <div
+          role="radiogroup"
+          aria-label="Theme preference"
+          className="inline-flex bg-surface-container-low p-1 rounded-xl border border-outline-variant self-start sm:self-auto"
+        >
+          {(
+            [
+              { id: 'light', label: 'Light', icon: 'light_mode' },
+              { id: 'dark', label: 'Dark', icon: 'dark_mode' },
+              { id: 'system', label: 'System', icon: 'desktop_windows' },
+            ] as { id: AppTheme; label: string; icon: string }[]
+          ).map((option) => {
+            const active = theme === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setTheme(option.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                  active
+                    ? 'bg-primary text-on-primary shadow-xs'
+                    : 'text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[15px]">{option.icon}</span>
+                <span>{option.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Cloud Sync */}
-      <div className="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container shadow-sm flex flex-col gap-3">
+      <div className="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant shadow-sm flex flex-col gap-3">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center flex-shrink-0">
+            <span className="w-9 h-9 rounded-xl bg-primary-fixed text-primary-ink flex items-center justify-center flex-shrink-0">
               <span className="material-symbols-outlined text-[20px]">cloud_done</span>
             </span>
             <div className="min-w-0">
@@ -399,11 +454,11 @@ export const ProfileSettingsView: React.FC = () => {
                 <h3 className="font-title-sm text-title-sm text-on-surface font-bold">Cloud Sync</h3>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 ${
                   isSupabaseConnected
-                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    ? 'bg-primary-fixed text-on-primary-fixed-variant'
                     : 'bg-surface-container-high text-on-surface-variant'
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${
-                    isSupabaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-on-surface-variant'
+                    isSupabaseConnected ? 'bg-primary-deep dark:bg-primary' : 'bg-on-surface-variant'
                   }`} />
                   {isSupabaseConnected ? 'Connected & Active' : 'Offline'}
                 </span>
@@ -415,7 +470,7 @@ export const ProfileSettingsView: React.FC = () => {
           </div>
           <button
             onClick={() => refreshData()}
-            className="px-3 py-1.5 bg-surface-container-low hover:bg-surface-container rounded-lg text-xs font-semibold text-on-surface border border-surface-container transition-colors flex items-center gap-1"
+            className="px-3 py-1.5 bg-surface-container-low hover:bg-surface-container rounded-lg text-xs font-semibold text-on-surface border border-outline-variant transition-colors flex items-center gap-1"
             title="Sync latest records from cloud"
           >
             <span className="material-symbols-outlined text-[15px]">sync</span>
@@ -425,7 +480,7 @@ export const ProfileSettingsView: React.FC = () => {
       </div>
 
       {/* Account Security & Actions */}
-      <div className="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container shadow-sm flex flex-col gap-3">
+      <div className="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant shadow-sm flex flex-col gap-3">
         <h3 className="font-title-sm text-title-sm text-on-surface font-bold">
           Account Actions
         </h3>
@@ -433,15 +488,15 @@ export const ProfileSettingsView: React.FC = () => {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setPasswordModalOpen(true)}
-            className="h-10 px-4 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-semibold flex items-center gap-1.5 border border-surface-container transition-colors"
+            className="h-10 px-4 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-semibold flex items-center gap-1.5 border border-outline-variant transition-colors"
           >
-            <span className="material-symbols-outlined text-[16px]">lock_reset</span>
+            <span className="material-symbols-outlined text-[16px] text-primary-ink">lock_reset</span>
             <span>Change Password</span>
           </button>
 
           <button
             onClick={logout}
-            className="h-10 px-4 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-semibold flex items-center gap-1.5 border border-surface-container transition-colors"
+            className="h-10 px-4 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-semibold flex items-center gap-1.5 border border-outline-variant transition-colors"
           >
             <span className="material-symbols-outlined text-[16px]">logout</span>
             <span>Sign Out</span>
@@ -449,7 +504,7 @@ export const ProfileSettingsView: React.FC = () => {
 
           <button
             onClick={() => setDeleteConfirmOpen(true)}
-            className="h-10 px-4 rounded-xl bg-error-container/40 hover:bg-error-container/60 text-error text-xs font-semibold flex items-center gap-1.5 border border-error-container ml-auto transition-colors"
+            className="h-10 px-4 rounded-xl bg-error-container/40 hover:bg-error-container/70 text-error text-xs font-semibold flex items-center gap-1.5 border border-error/25 ml-auto transition-colors"
           >
             <span className="material-symbols-outlined text-[16px]">delete_forever</span>
             <span>Delete Account</span>
@@ -460,8 +515,8 @@ export const ProfileSettingsView: React.FC = () => {
       {/* Change Password Modal */}
       {passwordModalOpen && (
         <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-surface-container-lowest border border-surface-container-high w-full max-w-sm rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
-            <div className="flex items-center justify-between pb-2 border-b border-surface-container">
+          <div className="bg-surface-container-lowest border border-outline-variant w-full max-w-sm rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
+            <div className="flex items-center justify-between pb-2 border-b border-outline-variant">
               <h3 className="font-headline-md text-headline-md text-on-surface font-semibold">
                 Change Password
               </h3>
@@ -483,7 +538,7 @@ export const ProfileSettingsView: React.FC = () => {
                   type="password"
                   value={currentPass}
                   onChange={(e) => setCurrentPass(e.target.value)}
-                  className="w-full h-10 px-3 bg-surface-container-low rounded-lg text-on-surface text-sm outline-none"
+                  className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant focus:border-primary rounded-lg text-on-surface text-sm outline-none"
                   autoFocus
                 />
               </div>
@@ -498,7 +553,7 @@ export const ProfileSettingsView: React.FC = () => {
                   value={newPass}
                   onChange={(e) => setNewPass(e.target.value)}
                   placeholder="Min 6 characters"
-                  className="w-full h-10 px-3 bg-surface-container-low rounded-lg text-on-surface text-sm outline-none"
+                  className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant focus:border-primary rounded-lg text-on-surface text-sm outline-none"
                 />
               </div>
 
@@ -511,7 +566,7 @@ export const ProfileSettingsView: React.FC = () => {
                   type="password"
                   value={confirmPass}
                   onChange={(e) => setConfirmPass(e.target.value)}
-                  className="w-full h-10 px-3 bg-surface-container-low rounded-lg text-on-surface text-sm outline-none"
+                  className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant focus:border-primary rounded-lg text-on-surface text-sm outline-none"
                 />
               </div>
 
@@ -519,14 +574,14 @@ export const ProfileSettingsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setPasswordModalOpen(false)}
-                  className="flex-1 h-10 rounded-lg bg-surface-container-high text-on-surface font-label-md text-label-md"
+                  className="flex-1 h-10 rounded-lg bg-surface-container-high text-on-surface font-label-md text-label-md hover:bg-surface-container transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isChangingPass}
-                  className="flex-1 h-10 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold disabled:opacity-50"
+                  className="flex-1 h-10 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold disabled:opacity-50 hover:bg-primary-container hover:text-on-primary-container transition-colors"
                 >
                   {isChangingPass ? 'Updating...' : 'Update'}
                 </button>

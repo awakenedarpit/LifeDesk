@@ -19,7 +19,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-surface-container-lowest border border-surface-container-high w-full max-w-sm rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
+      <div className="bg-surface-container-lowest border border-outline-variant w-full max-w-sm rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
         <div className="flex items-center gap-2.5 text-error">
           <div className="w-8 h-8 rounded-full bg-error-container text-on-error-container flex items-center justify-center flex-shrink-0">
             <span className="material-symbols-outlined text-[18px]">warning</span>

@@ -103,38 +103,38 @@ export const AnalyticsView: React.FC = () => {
 
       {/* Top KPI Cards (Real Data: Outflow, Liquid Runway, Average Daily Spend, Income & Transfers) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3.5">
-        <div className="bg-surface-container-lowest rounded-2xl p-4 border border-surface-container shadow-sm flex flex-col justify-between">
+        <div className="bg-surface-container-lowest rounded-2xl p-4 border border-outline-variant shadow-sm flex flex-col justify-between">
           <span className="font-label-xs text-xs text-on-surface-variant uppercase font-bold tracking-wider">
             Total Monthly Outflow
           </span>
-          <span className="font-currency-stat text-2xl text-on-surface font-extrabold mt-1">
+          <span className="font-currency-stat text-2xl text-on-surface font-extrabold mt-1 tabular-nums">
             {formatRupee(monthExpenses)}
           </span>
-          <span className="text-xs text-on-surface-variant mt-0.5">
+          <span className="text-xs text-on-surface-variant mt-0.5 tabular-nums">
             Liquid: {formatRupee(Math.max(0, monthExpenses - cardSpending))} • Card: {formatRupee(cardSpending)}
           </span>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-2xl p-4 border border-surface-container shadow-sm flex flex-col justify-between">
+        <div className="bg-surface-container-lowest rounded-2xl p-4 border border-outline-variant shadow-sm flex flex-col justify-between">
           <span className="font-label-xs text-xs text-on-surface-variant uppercase font-bold tracking-wider">
             Current Liquid Runway
           </span>
-          <span className="font-currency-stat text-2xl text-on-surface font-extrabold mt-1">
+          <span className="font-currency-stat text-2xl text-on-surface font-extrabold mt-1 tabular-nums">
             {formatRupee(availableMoney)}
           </span>
-          <span className="text-xs text-on-surface-variant mt-0.5">
+          <span className="text-xs text-on-surface-variant mt-0.5 tabular-nums">
             UPI: {formatRupee(balances.upiBalance)} • Cash: {formatRupee(balances.cashBalance)}
           </span>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-2xl p-4 border border-surface-container shadow-sm flex flex-col justify-between">
+        <div className="bg-surface-container-lowest rounded-2xl p-4 border border-outline-variant shadow-sm flex flex-col justify-between">
           <span className="font-label-xs text-xs text-on-surface-variant uppercase font-bold tracking-wider">
             Average Daily Spend
           </span>
-          <span className="font-currency-stat text-2xl text-on-surface font-extrabold mt-1">
+          <span className="font-currency-stat text-2xl text-on-surface font-extrabold mt-1 tabular-nums">
             {formatRupee(avgDailySpend)}
           </span>
-          <span className="text-xs text-on-surface-variant font-medium mt-0.5 flex items-center gap-1">
+          <span className="text-xs text-on-surface-variant font-medium mt-0.5 flex items-center gap-1 tabular-nums">
             Day {daysInMonthElapsed} of current month
           </span>
         </div>
@@ -142,29 +142,29 @@ export const AnalyticsView: React.FC = () => {
 
       {/* Cashflow Summary: Income vs Transfers */}
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
-        <div className="bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 border border-surface-container shadow-sm flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
+        <div className="bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 border border-outline-variant shadow-sm flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary-fixed text-primary-ink flex items-center justify-center flex-shrink-0">
             <span className="material-symbols-outlined text-[20px]">savings</span>
           </div>
           <div>
             <span className="font-label-xs text-[10px] text-on-surface-variant uppercase font-bold tracking-wide block">
               Total Inflow (Income)
             </span>
-            <span className="text-base sm:text-lg text-emerald-600 dark:text-emerald-400 font-extrabold">
+            <span className="text-base sm:text-lg text-primary-ink font-extrabold tabular-nums">
               +{formatRupee(totalIncome)}
             </span>
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 border border-surface-container shadow-sm flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+        <div className="bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 border border-outline-variant shadow-sm flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center justify-center flex-shrink-0">
             <span className="material-symbols-outlined text-[20px]">sync_alt</span>
           </div>
           <div>
             <span className="font-label-xs text-[10px] text-on-surface-variant uppercase font-bold tracking-wide block">
               Internal Transfers
             </span>
-            <span className="text-base sm:text-lg text-on-surface font-extrabold">
+            <span className="text-base sm:text-lg text-on-surface font-extrabold tabular-nums">
               {formatRupee(totalTransfers)}
             </span>
           </div>
@@ -172,7 +172,7 @@ export const AnalyticsView: React.FC = () => {
       </div>
 
       {/* Weekly Spending Velocity Chart (Dynamic Real Data from Transactions) */}
-      <div className="bg-surface-container-lowest rounded-2xl border border-surface-container p-4 sm:p-5 shadow-sm flex flex-col gap-4">
+      <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-4 sm:p-5 shadow-sm flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-title-sm text-base text-on-surface font-bold">
@@ -180,13 +180,13 @@ export const AnalyticsView: React.FC = () => {
             </h2>
             <p className="text-xs text-on-surface-variant">Daily student expenditure across all payment channels.</p>
           </div>
-          <span className="font-label-xs text-xs px-2.5 py-1 rounded-full bg-surface-container-high text-primary font-bold">
+          <span className="font-label-xs text-xs px-2.5 py-1 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-bold">
             Last 7 Days
           </span>
         </div>
 
         {/* Responsive Bar Container */}
-        <div className="h-44 sm:h-52 w-full flex items-end justify-between gap-2 sm:gap-4 pt-6 pb-2 border-b border-surface-container">
+        <div className="h-44 sm:h-52 w-full flex items-end justify-between gap-2 sm:gap-4 pt-6 pb-2 border-b border-outline-variant">
           {weekDays.map((item, idx) => {
             const heightPct = Math.max(8, Math.round((item.amount / maxWeekly) * 85));
             const isHighest = item.amount === maxWeekly && item.amount > 0;
@@ -194,26 +194,26 @@ export const AnalyticsView: React.FC = () => {
             return (
               <div key={idx} className="flex-1 flex flex-col items-center justify-end h-full gap-1.5 group select-none">
                 {/* Amount tooltip */}
-                <span className="text-[10px] font-bold text-on-surface-variant opacity-80 group-hover:opacity-100 group-hover:text-primary transition-opacity font-mono">
+                <span className={`text-[10px] font-bold transition-opacity font-mono tabular-nums ${isHighest ? 'text-primary-ink' : 'text-on-surface-variant opacity-85 group-hover:opacity-100 group-hover:text-primary-ink'}`}>
                   {item.amount > 0 ? `₹${item.amount}` : '₹0'}
                 </span>
 
                 {/* Vertical Bar */}
-                <div className="w-full max-w-[36px] bg-surface-container-low rounded-t-xl overflow-hidden flex flex-col justify-end h-full">
+                <div className="w-full max-w-[36px] bg-surface-container-low rounded-t-xl overflow-hidden flex flex-col justify-end h-full border border-outline-variant/40">
                   <div
-                    className={`w-full rounded-t-xl transition-all duration-300 group-hover:brightness-110 ${
+                    className={`w-full rounded-t-xl transition-all duration-300 group-hover:brightness-105 ${
                       item.amount === 0
-                        ? 'bg-surface-container-high h-2'
+                        ? 'bg-outline-variant'
                         : isHighest
-                        ? 'bg-primary'
-                        : 'bg-primary/50'
+                        ? 'bg-primary-deep'
+                        : 'bg-primary'
                     }`}
                     style={{ height: item.amount === 0 ? '4px' : `${heightPct}%` }}
                   />
                 </div>
 
                 {/* Day Label */}
-                <span className={`text-[11px] font-bold mt-1 ${isHighest ? 'text-primary' : 'text-on-surface-variant'}`}>
+                <span className={`text-[11px] font-bold mt-1 ${isHighest ? 'text-primary-ink' : 'text-on-surface-variant'}`}>
                   {item.day}
                 </span>
               </div>
@@ -223,7 +223,7 @@ export const AnalyticsView: React.FC = () => {
       </div>
 
       {/* Multi-Source Payment Method Distribution (UPI, Cash, Card) */}
-      <div className="bg-surface-container-lowest rounded-2xl border border-surface-container p-4 sm:p-5 shadow-sm flex flex-col gap-4">
+      <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-4 sm:p-5 shadow-sm flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-title-sm text-base text-on-surface font-bold">
@@ -233,20 +233,20 @@ export const AnalyticsView: React.FC = () => {
           </div>
         </div>
 
-        {/* Multi-Segment Stacked Progress Bar */}
-        <div className="h-4 rounded-full bg-surface-container overflow-hidden flex w-full">
+        {/* Multi-Segment Stacked Progress Bar (3 distinct readable shades across Light & Dark) */}
+        <div className="h-4 rounded-full bg-surface-container-low border border-outline-variant overflow-hidden flex w-full gap-0.5">
           <div
-            className="h-full bg-primary transition-all duration-300"
+            className="h-full bg-[#55CDA0] dark:bg-[#72DDB0] transition-all duration-300"
             style={{ width: `${upiPercent}%` }}
             title={`UPI: ${upiPercent}%`}
           />
           <div
-            className="h-full bg-secondary transition-all duration-300"
+            className="h-full bg-[#239B70] dark:bg-[#2E8F6B] transition-all duration-300"
             style={{ width: `${cashPercent}%` }}
             title={`Cash: ${cashPercent}%`}
           />
           <div
-            className="h-full bg-tertiary transition-all duration-300"
+            className="h-full bg-[#326E86] dark:bg-[#6CB4D6] transition-all duration-300"
             style={{ width: `${cardPercent}%` }}
             title={`Card: ${cardPercent}%`}
           />
@@ -254,34 +254,34 @@ export const AnalyticsView: React.FC = () => {
 
         {/* Legend */}
         <div className="grid grid-cols-3 gap-2 pt-1 text-center">
-          <div className="p-2.5 rounded-xl bg-surface-container-low border border-surface-container flex flex-col items-center">
+          <div className="p-2.5 rounded-xl bg-surface-container-low border border-outline-variant flex flex-col items-center">
             <div className="flex items-center gap-1.5 mb-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-primary" />
-              <span className="text-xs font-bold text-on-surface">UPI ({upiPercent}%)</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#55CDA0] dark:bg-[#72DDB0]" />
+              <span className="text-xs font-bold text-on-surface tabular-nums">UPI ({upiPercent}%)</span>
             </div>
-            <span className="text-xs font-bold text-on-surface-variant">{formatRupee(upiExpenses)}</span>
+            <span className="text-xs font-bold text-on-surface-variant tabular-nums">{formatRupee(upiExpenses)}</span>
           </div>
 
-          <div className="p-2.5 rounded-xl bg-surface-container-low border border-surface-container flex flex-col items-center">
+          <div className="p-2.5 rounded-xl bg-surface-container-low border border-outline-variant flex flex-col items-center">
             <div className="flex items-center gap-1.5 mb-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-secondary" />
-              <span className="text-xs font-bold text-on-surface">Cash ({cashPercent}%)</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#239B70] dark:bg-[#2E8F6B]" />
+              <span className="text-xs font-bold text-on-surface tabular-nums">Cash ({cashPercent}%)</span>
             </div>
-            <span className="text-xs font-bold text-on-surface-variant">{formatRupee(cashExpenses)}</span>
+            <span className="text-xs font-bold text-on-surface-variant tabular-nums">{formatRupee(cashExpenses)}</span>
           </div>
 
-          <div className="p-2.5 rounded-xl bg-surface-container-low border border-surface-container flex flex-col items-center">
+          <div className="p-2.5 rounded-xl bg-surface-container-low border border-outline-variant flex flex-col items-center">
             <div className="flex items-center gap-1.5 mb-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-tertiary" />
-              <span className="text-xs font-bold text-on-surface">Card ({cardPercent}%)</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#326E86] dark:bg-[#6CB4D6]" />
+              <span className="text-xs font-bold text-on-surface tabular-nums">Card ({cardPercent}%)</span>
             </div>
-            <span className="text-xs font-bold text-on-surface-variant">{formatRupee(cardExpenses)}</span>
+            <span className="text-xs font-bold text-on-surface-variant tabular-nums">{formatRupee(cardExpenses)}</span>
           </div>
         </div>
       </div>
 
       {/* Category Spending Breakdown List (Derived from real transactions) */}
-      <div className="bg-surface-container-lowest rounded-2xl border border-surface-container p-4 sm:p-5 shadow-sm flex flex-col gap-3.5">
+      <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-4 sm:p-5 shadow-sm flex flex-col gap-3.5">
         <h2 className="font-title-sm text-base text-on-surface font-bold">
           Category Outflow Breakdown
         </h2>
@@ -294,12 +294,12 @@ export const AnalyticsView: React.FC = () => {
               <div key={item.category} className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-xs font-semibold">
                   <span className="text-on-surface">{item.category}</span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 tabular-nums">
                     <span className="text-on-surface-variant">{item.percent}%</span>
                     <span className="font-bold text-on-surface">{formatRupee(item.amount)}</span>
                   </div>
                 </div>
-                <div className="h-2 rounded-full bg-surface-container overflow-hidden">
+                <div className="h-2 rounded-full bg-surface-container-low border border-outline-variant/50 overflow-hidden">
                   <div
                     className="h-full bg-primary rounded-full transition-all duration-300"
                     style={{ width: `${item.percent}%` }}

@@ -29,7 +29,7 @@ export const INITIAL_PROFILE: UserProfile = {
   course: 'B.Tech - Computer Science & Engineering',
   currentSemester: 'Sem VII',
   bio: 'Systems geek, competitive hackathon builder & Edge AI enthusiast.',
-  avatarUrl: 'https://lh3.googleusercontent.com/aida/AEtjO1UEgUlihmPnmz7-G4PHbl3pC1m1eEBx9V7IfsB6x7Bu1e1qkGgR4JntQeww1cNwkHE22XSFgWKmV-Swd1ODRC7FAnfZa_RQ7rxRwOKsPzqZJ6g71fU3J8hPEjcPb9n6MZvN2HZJtaP2fCtsYv4luUc3WnBPVwe0sn6AeMzTfbQQQAcP3hr6yjcM27a_4bIsS-8abxk3kWdA-bItHgPBzr0faPFmVagKKMjUnF7PNdrb-YqkGtQ06MQ2abHq2bAI-F-VKlth0God-A',
+  avatarUrl: '',
 };
 
 export const INITIAL_BALANCES: Balances = {
@@ -170,7 +170,7 @@ export const INITIAL_HACKATHONS: Hackathon[] = [
     status: 'In Progress',
     trackName: 'Hardware Acceleration Track',
     deliverable: 'Deliverable: Edge AI deployment demo',
-    bannerImage: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDjtBuuCmgokrKA9Lsf3TGWYap2143gafT_Gpi5128W1tu-nIl3lyVapkBGXHrkQSEHtsUtayorGPiIwQQYkGCaxGfpNp1BsLwcwRTmo_2LIQqJhKsfp6KHMaSc6JoAWspotgRayRG31wCe4J_1AlLrFcLo5aH6w7zd2wZUY-0C5Vj_kqLO5Dc17mSWR6jWfvHN6etHbr0IPVyq07Zy1C1cV_b1kxipUXfCn4YPH7t6fNheOF-WMiow',
+    bannerImage: '',
     notes: 'Team Name: CyberForge. Team Lead: Aryan. Focus on low-power quantized YOLOv8 inference.',
     milestones: [
       {
@@ -248,7 +248,7 @@ export const INITIAL_HACKATHONS: Hackathon[] = [
     status: 'In Progress',
     trackName: 'DeFi & Micro-Grants',
     deliverable: 'Automated campus student project micro-endowments',
-    bannerImage: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80',
+    bannerImage: '',
     notes: 'Solidity contracts deployed on Mumbai / Amoy testnet',
     milestones: [
       {
@@ -505,4 +505,19 @@ export const storage = {
 
   getBalances: () => getStoredData<Balances>(STORAGE_KEYS.BALANCES, INITIAL_BALANCES),
   setBalances: (val: Balances) => setStoredData(STORAGE_KEYS.BALANCES, val),
+
+  clearUserDataCache: () => {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.PROFILE);
+      localStorage.removeItem(STORAGE_KEYS.TASKS);
+      localStorage.removeItem(STORAGE_KEYS.DEADLINES);
+      localStorage.removeItem(STORAGE_KEYS.HACKATHONS);
+      localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
+      localStorage.removeItem(STORAGE_KEYS.EVENTS);
+      localStorage.removeItem(STORAGE_KEYS.BALANCES);
+      localStorage.removeItem('lifedesk_learning_items');
+    } catch {
+      // ignore storage cleanup errors
+    }
+  },
 };

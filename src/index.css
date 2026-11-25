@@ -1,9 +1,12 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-surface: var(--color-surface);
   --color-surface-dim: var(--color-surface-dim);
   --color-surface-bright: var(--color-surface-bright);
+  --color-sidebar: var(--color-sidebar);
   --color-surface-container-lowest: var(--color-surface-container-lowest);
   --color-surface-container-low: var(--color-surface-container-low);
   --color-surface-container: var(--color-surface-container);
@@ -20,6 +23,8 @@
   --color-on-primary: var(--color-on-primary);
   --color-primary-container: var(--color-primary-container);
   --color-on-primary-container: var(--color-on-primary-container);
+  --color-primary-ink: var(--color-primary-ink);
+  --color-primary-deep: var(--color-primary-deep);
   --color-inverse-primary: var(--color-inverse-primary);
   --color-secondary: var(--color-secondary);
   --color-on-secondary: var(--color-on-secondary);
@@ -48,7 +53,8 @@
   --color-background: var(--color-background);
   --color-on-background: var(--color-on-background);
   --color-surface-variant: var(--color-surface-variant);
-  --font-inter: Inter, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --spacing-space-xs: 4px;
   --spacing-space-sm: 8px;
   --spacing-space-md: 16px;
@@ -57,103 +63,109 @@
 }
 
 :root {
-  --color-surface: #f8f9ff;
-  --color-surface-dim: #cbdbf5;
-  --color-surface-bright: #f8f9ff;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #eff4ff;
-  --color-surface-container: #e5eeff;
-  --color-surface-container-high: #dce9ff;
-  --color-surface-container-highest: #d3e4fe;
-  --color-on-surface: #0b1c30;
-  --color-on-surface-variant: #444655;
-  --color-inverse-surface: #213145;
-  --color-inverse-on-surface: #eaf1ff;
-  --color-outline: #747686;
-  --color-outline-variant: #c4c5d7;
-  --color-surface-tint: #2e4edc;
-  --color-primary: #2346d5;
-  --color-on-primary: #ffffff;
-  --color-primary-container: #4361ee;
-  --color-on-primary-container: #f4f2ff;
-  --color-inverse-primary: #bac3ff;
-  --color-secondary: #5c5c79;
-  --color-on-secondary: #ffffff;
-  --color-secondary-container: #dfdcff;
-  --color-on-secondary-container: #60607e;
-  --color-tertiary: #6b21dc;
-  --color-on-tertiary: #ffffff;
-  --color-tertiary-container: #8545f6;
-  --color-on-tertiary-container: #f9f1ff;
-  --color-error: #ba1a1a;
-  --color-on-error: #ffffff;
-  --color-error-container: #ffdad6;
-  --color-on-error-container: #93000a;
-  --color-primary-fixed: #dee1ff;
-  --color-primary-fixed-dim: #bac3ff;
-  --color-on-primary-fixed: #001159;
-  --color-on-primary-fixed-variant: #0031c4;
-  --color-secondary-fixed: #e2dfff;
-  --color-secondary-fixed-dim: #c5c3e5;
-  --color-on-secondary-fixed: #191933;
-  --color-on-secondary-fixed-variant: #444460;
-  --color-tertiary-fixed: #eaddff;
-  --color-tertiary-fixed-dim: #d2bbff;
-  --color-on-tertiary-fixed: #25005a;
-  --color-on-tertiary-fixed-variant: #5a00c6;
-  --color-background: #f8f9ff;
-  --color-on-background: #0b1c30;
-  --color-surface-variant: #d3e4fe;
+  --color-surface: #F4FAF6;
+  --color-surface-dim: #E3F2EA;
+  --color-surface-bright: #FFFFFF;
+  --color-sidebar: #FFFFFF;
+  --color-surface-container-lowest: #FFFFFF;
+  --color-surface-container-low: #EBF7F0;
+  --color-surface-container: #DDF5E9;
+  --color-surface-container-high: #CBEBD9;
+  --color-surface-container-highest: #B6E1CA;
+  --color-on-surface: #173C30;
+  --color-on-surface-variant: #46695D;
+  --color-inverse-surface: #14221E;
+  --color-inverse-on-surface: #E5F7EF;
+  --color-outline: #79A091;
+  --color-outline-variant: #D0E6DA;
+  --color-surface-tint: #239B70;
+  --color-primary: #55CDA0;
+  --color-on-primary: #0E3226;
+  --color-primary-container: #239B70;
+  --color-on-primary-container: #FFFFFF;
+  --color-primary-ink: #187A56;
+  --color-primary-deep: #239B70;
+  --color-inverse-primary: #72DDB0;
+  --color-secondary: #239B70;
+  --color-on-secondary: #FFFFFF;
+  --color-secondary-container: #DDF5E9;
+  --color-on-secondary-container: #173C30;
+  --color-tertiary: #2C7A7B;
+  --color-on-tertiary: #FFFFFF;
+  --color-tertiary-container: #DCF2F0;
+  --color-on-tertiary-container: #1B5758;
+  --color-error: #C83E3B;
+  --color-on-error: #FFFFFF;
+  --color-error-container: #FDECEC;
+  --color-on-error-container: #9B2321;
+  --color-primary-fixed: #DDF5E9;
+  --color-primary-fixed-dim: #A7E8C9;
+  --color-on-primary-fixed: #173C30;
+  --color-on-primary-fixed-variant: #187A56;
+  --color-secondary-fixed: #E5F6EE;
+  --color-secondary-fixed-dim: #C4EBD8;
+  --color-on-secondary-fixed: #173C30;
+  --color-on-secondary-fixed-variant: #255645;
+  --color-tertiary-fixed: #DCF2F0;
+  --color-tertiary-fixed-dim: #B5E0DC;
+  --color-on-tertiary-fixed: #134243;
+  --color-on-tertiary-fixed-variant: #1B5758;
+  --color-background: #F4FAF6;
+  --color-on-background: #173C30;
+  --color-surface-variant: #DDF5E9;
 }
 
 html.dark {
-  --color-surface: #0b1320;
-  --color-surface-dim: #090f1a;
-  --color-surface-bright: #121e33;
-  --color-surface-container-lowest: #0e1829;
-  --color-surface-container-low: #142238;
-  --color-surface-container: #1a2a44;
-  --color-surface-container-high: #213554;
-  --color-surface-container-highest: #2a4166;
-  --color-on-surface: #edf3ff;
-  --color-on-surface-variant: #9aaec7;
-  --color-inverse-surface: #eaf1ff;
-  --color-inverse-on-surface: #101c30;
-  --color-outline: #556782;
-  --color-outline-variant: #263852;
-  --color-surface-tint: #728eff;
-  --color-primary: #456cff;
-  --color-on-primary: #ffffff;
-  --color-primary-container: #2346d5;
-  --color-on-primary-container: #eff2ff;
-  --color-inverse-primary: #2346d5;
-  --color-secondary: #9aa1bc;
-  --color-on-secondary: #141724;
-  --color-secondary-container: #262942;
-  --color-on-secondary-container: #dedcff;
-  --color-tertiary: #9d6aff;
-  --color-on-tertiary: #ffffff;
-  --color-tertiary-container: #6b21dc;
-  --color-on-tertiary-container: #f9f1ff;
-  --color-error: #ff7272;
-  --color-on-error: #410002;
-  --color-error-container: #4e1215;
-  --color-on-error-container: #ffdad6;
-  --color-primary-fixed: #1e3166;
-  --color-primary-fixed-dim: #2b4594;
-  --color-on-primary-fixed: #dee1ff;
-  --color-on-primary-fixed-variant: #c0c9ff;
-  --color-secondary-fixed: #27283d;
-  --color-secondary-fixed-dim: #3a3b57;
-  --color-on-secondary-fixed: #e2dfff;
-  --color-on-secondary-fixed-variant: #cbcae8;
-  --color-tertiary-fixed: #2f1852;
-  --color-tertiary-fixed-dim: #4c2685;
-  --color-on-tertiary-fixed: #eaddff;
-  --color-on-tertiary-fixed-variant: #debfff;
-  --color-background: #0b1320;
-  --color-on-background: #edf3ff;
-  --color-surface-variant: #1a2a44;
+  --color-surface: #101B19;
+  --color-surface-dim: #0C1513;
+  --color-surface-bright: #1B2B26;
+  --color-sidebar: #14221E;
+  --color-surface-container-lowest: #1B2B26;
+  --color-surface-container-low: #162420;
+  --color-surface-container: #24372F;
+  --color-surface-container-high: #2A4037;
+  --color-surface-container-highest: #324C41;
+  --color-on-surface: #E5F7EF;
+  --color-on-surface-variant: #A1B9AE;
+  --color-inverse-surface: #E5F7EF;
+  --color-inverse-on-surface: #101B19;
+  --color-outline: #527063;
+  --color-outline-variant: #30463B;
+  --color-surface-tint: #72DDB0;
+  --color-primary: #72DDB0;
+  --color-on-primary: #0F231E;
+  --color-primary-container: #55CDA0;
+  --color-on-primary-container: #0E231D;
+  --color-primary-ink: #72DDB0;
+  --color-primary-deep: #A7E8C9;
+  --color-inverse-primary: #239B70;
+  --color-secondary: #A7E8C9;
+  --color-on-secondary: #101B19;
+  --color-secondary-container: #24372F;
+  --color-on-secondary-container: #A7E8C9;
+  --color-tertiary: #6CC5C3;
+  --color-on-tertiary: #0D2626;
+  --color-tertiary-container: #1D3534;
+  --color-on-tertiary-container: #9CE0DE;
+  --color-error: #F28B82;
+  --color-on-error: #3B0907;
+  --color-error-container: #491D1B;
+  --color-on-error-container: #FFDAD6;
+  --color-primary-fixed: #24372F;
+  --color-primary-fixed-dim: #304A40;
+  --color-on-primary-fixed: #E5F7EF;
+  --color-on-primary-fixed-variant: #A7E8C9;
+  --color-secondary-fixed: #1F312A;
+  --color-secondary-fixed-dim: #2D453C;
+  --color-on-secondary-fixed: #E5F7EF;
+  --color-on-secondary-fixed-variant: #A7E8C9;
+  --color-tertiary-fixed: #1D3534;
+  --color-tertiary-fixed-dim: #284A49;
+  --color-on-tertiary-fixed: #DDF6F5;
+  --color-on-tertiary-fixed-variant: #9CE0DE;
+  --color-background: #101B19;
+  --color-on-background: #E5F7EF;
+  --color-surface-variant: #24372F;
 }
 
 @layer base {
@@ -161,12 +173,13 @@ html.dark {
     width: 100%;
     margin: 0;
     padding: 0;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   }
   body {
     overscroll-behavior: none;
     background-color: var(--color-surface);
     color: var(--color-on-surface);
+    -webkit-font-smoothing: antialiased;
   }
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -198,90 +211,95 @@ html.dark {
   font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
-/* Typography styles matching the Stitch design */
+/* Typography system */
 .font-display-lg {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 40px;
   line-height: 48px;
   letter-spacing: -0.025em;
   font-weight: 700;
 }
 .font-display-lg-mobile {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 30px;
   line-height: 38px;
   letter-spacing: -0.02em;
   font-weight: 700;
 }
 .font-headline-lg {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 28px;
   line-height: 36px;
   letter-spacing: -0.02em;
-  font-weight: 600;
+  font-weight: 700;
 }
 .font-headline-lg-mobile {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 24px;
   line-height: 32px;
   letter-spacing: -0.015em;
-  font-weight: 600;
+  font-weight: 700;
 }
 .font-headline-md {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 20px;
   line-height: 28px;
   letter-spacing: -0.015em;
   font-weight: 600;
 }
 .font-title-sm {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 16px;
   line-height: 24px;
   letter-spacing: -0.01em;
   font-weight: 600;
 }
 .font-body-lg {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 16px;
   line-height: 24px;
   letter-spacing: -0.005em;
   font-weight: 400;
 }
 .font-body-md {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 14px;
   line-height: 20px;
   letter-spacing: 0em;
   font-weight: 400;
 }
 .font-body-sm {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 13px;
   line-height: 18px;
   letter-spacing: 0em;
   font-weight: 400;
 }
 .font-label-md {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 13px;
   line-height: 18px;
   letter-spacing: 0.01em;
-  font-weight: 500;
+  font-weight: 600;
 }
 .font-label-xs {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 11px;
   line-height: 14px;
   letter-spacing: 0.04em;
   font-weight: 600;
 }
 .font-currency-stat {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 24px;
   line-height: 32px;
   letter-spacing: -0.02em;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Custom scrollbars */
@@ -293,9 +311,9 @@ html.dark {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.25);
+  background: rgba(35, 155, 112, 0.25);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.4);
+  background: rgba(35, 155, 112, 0.45);
 }
