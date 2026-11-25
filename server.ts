@@ -4,10 +4,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import {
-  buildFeedbackEmailPayload,
   DEFAULT_FEEDBACK_RECIPIENT_EMAIL,
-  isValidEmailAddress,
+  type ResendEmailRequestPayload,
 } from './src/utils/feedbackEmail.ts';
+import {
+  type FeedbackEmailSender,
+  InMemoryFeedbackNotificationStore,
+  processFeedbackNotification,
+} from './src/utils/feedbackNotification.ts';
 import type { FeedbackCategory } from './src/types/index.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -81,6 +85,55 @@ async function verifySupabaseBearerToken(
     return null;
   }
 }
+
+const serverFeedbackStore = new InMemoryFeedbackNotificationStore();
+
+const createResendSender = (resendApiKey: string): FeedbackEmailSender => ({
+  async send(payload: ResendEmailRequestPayload, options: { idempotencyKey: string }) {
+    if (!resendApiKey) {
+      return {
+        ok: false,
+        statusCode: 503,
+        error: `Email forwarding to ${DEFAULT_FEEDBACK_RECIPIENT_EMAIL} is not configured yet (set RESEND_API_KEY in server secrets).`,
+      };
+    }
+
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${resendApiKey}`,
+      'Content-Type': 'application/json',
+    };
+    if (options.idempotencyKey) {
+      headers['Idempotency-Key'] = options.idempotencyKey;
+    }
+
+    try {
+      const resendRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      if (!resendRes.ok) {
+        const detail = await resendRes.text();
+        console.error('Resend feedback forwarding error:', resendRes.status, detail);
+        return {
+          ok: false,
+          statusCode: 502,
+          error: `Email delivery service rejected the request (${resendRes.status}).`,
+        };
+      }
+
+      const data = (await resendRes.json()) as { id?: string };
+      return { ok: true, id: data.id || null };
+    } catch {
+      return {
+        ok: false,
+        statusCode: 502,
+        error: 'Unable to reach Resend email service.',
+      };
+    }
+  },
+});
 
 const OAUTH_CALLBACK_HTML = `<!doctype html>
 <html lang="en">
@@ -181,82 +234,66 @@ async function startServer() {
       return;
     }
 
-    const envRecipient = (process.env.FEEDBACK_RECIPIENT_EMAIL || '').trim();
-    const recipientEmail = isValidEmailAddress(envRecipient)
-      ? envRecipient
-      : DEFAULT_FEEDBACK_RECIPIENT_EMAIL;
-
     const body = (req.body || {}) as Record<string, unknown>;
-    const built = buildFeedbackEmailPayload({
-      category: String(body.category || 'General') as FeedbackCategory,
-      rating: Number(body.rating),
-      subject: String(body.subject || ''),
-      message: String(body.message || ''),
-      senderName:
-        verifiedUser.fullName ||
-        (typeof body.senderName === 'string' ? body.senderName : undefined),
-      senderEmail:
-        verifiedUser.email ||
-        (typeof body.senderEmail === 'string' ? body.senderEmail : undefined),
-      senderId: verifiedUser.id,
-      fromEmail: process.env.FEEDBACK_FROM_EMAIL,
-      recipientEmail,
-    });
+    const feedbackId =
+      typeof body.feedbackId === 'string' && body.feedbackId.trim()
+        ? body.feedbackId.trim()
+        : `fb-${Date.now()}`;
 
-    if (built.valid === false) {
-      res.status(400).json({ error: built.error });
-      return;
+    // Register record once per feedbackId so retries cannot overwrite ownership or bypass dedup.
+    const existing = await serverFeedbackStore.getById(feedbackId);
+    if (!existing) {
+      serverFeedbackStore.upsert({
+        id: feedbackId,
+        userId: verifiedUser.id,
+        category: String(body.category || 'General') as FeedbackCategory,
+        rating: Number(body.rating),
+        subject: String(body.subject || ''),
+        message: String(body.message || ''),
+        createdAt:
+          typeof body.createdAt === 'string' && body.createdAt.trim()
+            ? body.createdAt.trim()
+            : new Date().toISOString(),
+        emailStatus: 'pending',
+        emailSentAt: null,
+        emailError: null,
+        emailAttempts: 0,
+        emailMessageId: null,
+      });
     }
 
     const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
-    if (!resendApiKey) {
-      res.status(200).json({
-        forwarded: false,
-        configured: false,
-        to: recipientEmail,
-        reason: 'missing_resend_api_key',
-        error: `Email forwarding to ${recipientEmail} is not configured yet (set RESEND_API_KEY in server secrets).`,
-      });
-      return;
-    }
-
-    try {
-      const resendRes = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json',
+    const result = await processFeedbackNotification(
+      {
+        feedbackId,
+        authenticatedUser: {
+          id: verifiedUser.id,
+          fullName:
+            verifiedUser.fullName ||
+            (typeof body.senderName === 'string' ? body.senderName : undefined),
+          email:
+            verifiedUser.email ||
+            (typeof body.senderEmail === 'string' ? body.senderEmail : undefined),
         },
-        body: JSON.stringify(built.payload),
-      });
+        fromEmail: process.env.FEEDBACK_FROM_EMAIL,
+      },
+      serverFeedbackStore,
+      createResendSender(resendApiKey)
+    );
 
-      if (!resendRes.ok) {
-        const detail = await resendRes.text();
-        console.error('Resend feedback forwarding error:', resendRes.status, detail);
-        res.status(502).json({
-          forwarded: false,
-          configured: true,
-          to: recipientEmail,
-          error: `Email delivery service rejected the request (${resendRes.status}).`,
-        });
-        return;
-      }
-
-      const data = (await resendRes.json()) as { id?: string };
-      res.status(200).json({
-        forwarded: true,
-        configured: true,
-        to: recipientEmail,
-        id: data.id || null,
-      });
-    } catch {
-      res.status(502).json({
-        forwarded: false,
-        configured: true,
-        to: recipientEmail,
-        error: 'Unable to reach Resend email service.',
-      });
-    }
+    res.status(result.httpStatus).json({
+      forwarded: result.forwarded,
+      alreadySent: Boolean(result.alreadySent),
+      inProgress: Boolean(result.inProgress),
+      configured: Boolean(resendApiKey),
+      feedbackId: result.feedbackId,
+      emailStatus: result.emailStatus,
+      emailSentAt: result.emailSentAt || null,
+      emailError: result.emailError || null,
+      to: DEFAULT_FEEDBACK_RECIPIENT_EMAIL,
+      id: result.id || null,
+      ...(result.error ? { error: result.error } : {}),
+    });
   });
 
   if (!isProd) {

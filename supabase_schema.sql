@@ -139,8 +139,52 @@ CREATE TABLE IF NOT EXISTS public.feedback (
   rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
   subject TEXT NOT NULL,
   message TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  email_status TEXT NOT NULL DEFAULT 'pending' CHECK (email_status IN ('pending', 'sending', 'sent', 'failed')),
+  email_sent_at TIMESTAMPTZ,
+  email_error TEXT,
+  email_attempts INTEGER NOT NULL DEFAULT 0 CHECK (email_attempts >= 0),
+  email_message_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.feedback
+  ADD COLUMN IF NOT EXISTS email_status TEXT NOT NULL DEFAULT 'pending',
+  ADD COLUMN IF NOT EXISTS email_sent_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS email_error TEXT,
+  ADD COLUMN IF NOT EXISTS email_attempts INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS email_message_id TEXT,
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'feedback_email_status_check'
+      AND conrelid = 'public.feedback'::regclass
+  ) THEN
+    ALTER TABLE public.feedback
+      ADD CONSTRAINT feedback_email_status_check
+      CHECK (email_status IN ('pending', 'sending', 'sent', 'failed'));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'feedback_email_attempts_check'
+      AND conrelid = 'public.feedback'::regclass
+  ) THEN
+    ALTER TABLE public.feedback
+      ADD CONSTRAINT feedback_email_attempts_check
+      CHECK (email_attempts >= 0);
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_feedback_user_created
+  ON public.feedback (user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_email_status
+  ON public.feedback (email_status)
+  WHERE email_status IN ('pending', 'failed');
 
 -- ========================================================
 -- Row Level Security (RLS) - Complete User Data Isolation
@@ -231,12 +275,25 @@ CREATE POLICY "Users can manage own learning items"
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
--- Feedback Policies
+-- Feedback Policies (Least-privilege: users read/insert own feedback; only service_role updates delivery metadata)
 DROP POLICY IF EXISTS "Users can manage own feedback" ON public.feedback;
-CREATE POLICY "Users can manage own feedback"
-  ON public.feedback FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view own feedback" ON public.feedback;
+DROP POLICY IF EXISTS "Users can insert own feedback" ON public.feedback;
+
+CREATE POLICY "Users can view own feedback"
+  ON public.feedback FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own feedback"
+  ON public.feedback FOR INSERT
+  WITH CHECK (
+    auth.uid() = user_id
+    AND email_status = 'pending'
+    AND email_sent_at IS NULL
+    AND email_error IS NULL
+    AND email_attempts = 0
+    AND email_message_id IS NULL
+  );
 
 -- ========================================================
 -- Automatic Profile Creation Trigger on Auth Sign-Up

@@ -146,6 +146,7 @@ export interface LearningItem {
 }
 
 export type FeedbackCategory = 'Feature Request' | 'Bug Report' | 'UI / UX' | 'General';
+export type FeedbackEmailStatus = 'pending' | 'sending' | 'sent' | 'failed';
 
 export interface FeedbackEntry {
   id: string;
@@ -155,4 +156,8 @@ export interface FeedbackEntry {
   subject: string;
   message: string;
   createdAt: string;
+  emailStatus?: FeedbackEmailStatus;
+  emailSentAt?: string | null;
+  emailError?: string | null;
+  emailAttempts?: number;
 }

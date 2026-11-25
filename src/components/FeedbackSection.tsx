@@ -28,12 +28,13 @@ export const FeedbackSection: React.FC = () => {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submittedConfirmation, setSubmittedConfirmation] = useState<{
     text: string;
     forwarded: boolean;
     mailtoHref?: string;
-    recipientEmail?: string;
+    feedbackId?: string;
   } | null>(null);
   const [history, setHistory] = useState<FeedbackEntry[]>([]);
 
@@ -120,29 +121,31 @@ export const FeedbackSection: React.FC = () => {
       setCategory('Feature Request');
       setRating(5);
 
+      const shortId = result.entry.id.slice(0, 8);
       if (result.emailForwarded) {
         setSubmittedConfirmation({
           forwarded: true,
-          text: `Thank you! Your feedback has been saved and sent to ${result.recipientEmail}.`,
+          feedbackId: result.entry.id,
+          text: `Thank you! Feedback #${shortId} was saved and emailed to ${result.recipientEmail}.`,
         });
         showToast(`Feedback sent to ${result.recipientEmail}.`, 'success');
       } else {
         const mailtoHref = buildFeedbackMailtoHref({
+          feedbackId: result.entry.id,
           category: validation.sanitized.category,
           rating: validation.sanitized.rating,
           subject: validation.sanitized.subject,
           message: validation.sanitized.message,
-          recipientEmail: result.recipientEmail,
         });
         setSubmittedConfirmation({
           forwarded: false,
           mailtoHref,
-          recipientEmail: result.recipientEmail,
+          feedbackId: result.entry.id,
           text: result.dbSaved
-            ? 'Thank you! Your feedback has been saved to your account.'
-            : 'Thank you! Your feedback has been saved on this device.',
+            ? `Thank you! Feedback #${shortId} was saved to your account. Email delivery can be retried below.`
+            : `Thank you! Feedback #${shortId} was saved on this device.`,
         });
-        showToast('Feedback submitted and saved!', 'success');
+        showToast('Feedback saved! You can retry email delivery anytime.', 'info');
       }
     } catch (err: unknown) {
       const errMsg = extractErrorMessage(
@@ -153,6 +156,48 @@ export const FeedbackSection: React.FC = () => {
       showToast(errMsg, 'error');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleRetryEmail = async (entry: FeedbackEntry) => {
+    if (retryingId || entry.emailStatus === 'sent') return;
+    setRetryingId(entry.id);
+    try {
+      const result = await supabaseService.retryFeedbackNotification(entry, {
+        senderName: user.fullName,
+        senderEmail: user.email,
+      });
+
+      setHistory((prev) => {
+        const updated = prev.map((item) => (item.id === entry.id ? result.entry : item));
+        try {
+          localStorage.setItem(getLocalFeedbackKey(user.id), JSON.stringify(updated));
+        } catch {
+          // Ignore storage quota errors
+        }
+        return updated;
+      });
+
+      if (result.emailForwarded) {
+        showToast(
+          result.alreadySent
+            ? 'Email notification was already delivered for this feedback.'
+            : `Email notification delivered to ${result.recipientEmail}.`,
+          'success'
+        );
+      } else {
+        showToast(
+          result.emailNote || 'Email notification could not be sent yet. Your feedback remains safely saved.',
+          'info'
+        );
+      }
+    } catch (err: unknown) {
+      showToast(
+        extractErrorMessage(err, 'Could not retry email notification right now.'),
+        'error'
+      );
+    } finally {
+      setRetryingId(null);
     }
   };
 
@@ -381,37 +426,61 @@ export const FeedbackSection: React.FC = () => {
             Recent Feedback Sent
           </span>
           <div className="flex flex-col gap-2">
-            {history.map((entry) => (
-              <div
-                key={entry.id}
-                className="p-3 rounded-xl bg-surface-container-low border border-outline-variant flex items-start justify-between gap-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-label-xs text-[10px] px-2 py-0.5 rounded-md bg-surface-container text-primary-ink border border-outline-variant font-bold">
-                      {entry.category}
+            {history.map((entry) => {
+              const isSent = entry.emailStatus === 'sent';
+              const isRetrying = retryingId === entry.id;
+              return (
+                <div
+                  key={entry.id}
+                  className="p-3 rounded-xl bg-surface-container-low border border-outline-variant flex items-start justify-between gap-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-label-xs text-[10px] px-2 py-0.5 rounded-md bg-surface-container text-primary-ink border border-outline-variant font-bold">
+                        {entry.category}
+                      </span>
+                      <span className="text-xs font-semibold text-on-surface truncate">
+                        {entry.subject}
+                      </span>
+                    </div>
+                    <p className="text-xs text-on-surface-variant mt-1 line-clamp-2">
+                      {entry.message}
+                    </p>
+                    <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
+                      <span className="font-mono text-[10px] text-on-surface-variant">
+                        ID: {entry.id.slice(0, 8)}
+                      </span>
+                      {isSent ? (
+                        <span className="text-[11px] font-semibold text-primary-ink">
+                          Email delivered
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={isRetrying}
+                          onClick={() => handleRetryEmail(entry)}
+                          className="text-[11px] font-semibold text-primary-ink hover:underline disabled:opacity-50 inline-flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[13px]">refresh</span>
+                          <span>{isRetrying ? 'Retrying email...' : 'Retry email'}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
+                    <span className="text-xs font-bold text-primary-ink tabular-nums">
+                      {entry.rating}/5 ★
                     </span>
-                    <span className="text-xs font-semibold text-on-surface truncate">
-                      {entry.subject}
+                    <span className="text-[10px] text-on-surface-variant tabular-nums">
+                      {new Date(entry.createdAt).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                      })}
                     </span>
                   </div>
-                  <p className="text-xs text-on-surface-variant mt-1 line-clamp-2">
-                    {entry.message}
-                  </p>
                 </div>
-                <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
-                  <span className="text-xs font-bold text-primary-ink tabular-nums">
-                    {entry.rating}/5 ★
-                  </span>
-                  <span className="text-[10px] text-on-surface-variant tabular-nums">
-                    {new Date(entry.createdAt).toLocaleDateString('en-IN', {
-                      day: 'numeric',
-                      month: 'short',
-                    })}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

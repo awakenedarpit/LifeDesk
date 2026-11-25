@@ -16,11 +16,13 @@ import {
   Transaction,
   MilestoneStage,
   FeedbackCategory,
+  FeedbackEmailStatus,
   FeedbackEntry,
 } from '../types';
 import {
   DEFAULT_FEEDBACK_RECIPIENT_EMAIL,
   extractErrorMessage,
+  isMissingFeedbackColumnError,
   isMissingFeedbackTableError,
 } from '../utils/feedbackEmail';
 
@@ -927,18 +929,42 @@ export const supabaseService = {
     const client = getSupabaseClient();
     if (!client) return [];
 
-    const { data, error } = await client
+    const fullQuery = await client
       .from('feedback')
-      .select('id, user_id, category, rating, subject, message, created_at')
+      .select(
+        'id, user_id, category, rating, subject, message, created_at, email_status, email_sent_at, email_error, email_attempts'
+      )
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(10);
 
-    if (error) {
+    if (fullQuery.error && isMissingFeedbackColumnError(fullQuery.error)) {
+      const baseQuery = await client
+        .from('feedback')
+        .select('id, user_id, category, rating, subject, message, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (baseQuery.error) return [];
+
+      return (baseQuery.data || []).map((row) => ({
+        id: row.id,
+        userId: row.user_id,
+        category: (row.category || 'General') as FeedbackCategory,
+        rating: Number(row.rating) || 5,
+        subject: row.subject || '',
+        message: row.message || '',
+        createdAt: row.created_at || new Date().toISOString(),
+        emailStatus: 'pending' as FeedbackEmailStatus,
+      }));
+    }
+
+    if (fullQuery.error) {
       return [];
     }
 
-    return (data || []).map((row) => ({
+    return (fullQuery.data || []).map((row) => ({
       id: row.id,
       userId: row.user_id,
       category: (row.category || 'General') as FeedbackCategory,
@@ -946,7 +972,203 @@ export const supabaseService = {
       subject: row.subject || '',
       message: row.message || '',
       createdAt: row.created_at || new Date().toISOString(),
+      emailStatus: ((row.email_status as FeedbackEmailStatus) || 'pending'),
+      emailSentAt: row.email_sent_at || null,
+      emailError: row.email_error || null,
+      emailAttempts: Number(row.email_attempts) || 0,
     }));
+  },
+
+  async triggerFeedbackNotification(
+    entry: FeedbackEntry,
+    options?: {
+      senderName?: string;
+      senderEmail?: string;
+      accessToken?: string;
+      dbSaved?: boolean;
+    }
+  ): Promise<{
+    entry: FeedbackEntry;
+    emailForwarded: boolean;
+    alreadySent: boolean;
+    recipientEmail: string;
+    emailNote?: string;
+  }> {
+    const targetRecipient = DEFAULT_FEEDBACK_RECIPIENT_EMAIL;
+
+    // Never re-send if this feedback ID was already delivered.
+    if (entry.emailStatus === 'sent') {
+      return {
+        entry,
+        emailForwarded: true,
+        alreadySent: true,
+        recipientEmail: targetRecipient,
+      };
+    }
+
+    const client = getSupabaseClient();
+    let accessToken = options?.accessToken || '';
+    let edgeErrorNote = '';
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      entry.id
+    );
+
+    if (client && !accessToken) {
+      const { data: sessionData } = await client.auth.getSession();
+      let activeSession = sessionData.session;
+      if (!activeSession?.access_token) {
+        const refreshed = await client.auth.refreshSession().catch(() => null);
+        if (refreshed?.data?.session) {
+          activeSession = refreshed.data.session;
+        }
+      }
+      accessToken = activeSession?.access_token || '';
+    }
+
+    // 1. Try Supabase Edge Function (send-feedback-email) first when persisted with a UUID
+    if (client && accessToken && isUuid) {
+      try {
+        const { data: fnData, error: fnError } = await client.functions.invoke(
+          'send-feedback-email',
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: {
+              feedbackId: entry.id,
+            },
+          }
+        );
+
+        if (!fnError && fnData?.success) {
+          const updatedEntry: FeedbackEntry = {
+            ...entry,
+            emailStatus: 'sent',
+            emailSentAt: fnData.emailSentAt || new Date().toISOString(),
+            emailError: null,
+          };
+          return {
+            entry: updatedEntry,
+            emailForwarded: true,
+            alreadySent: Boolean(fnData.alreadySent),
+            recipientEmail: targetRecipient,
+          };
+        }
+
+        if (fnError && typeof fnError === 'object' && 'context' in fnError) {
+          const ctx = (fnError as { context?: Response }).context;
+          if (ctx && typeof ctx.json === 'function') {
+            const errJson = (await ctx.json().catch(() => null)) as {
+              error?: string;
+              emailStatus?: FeedbackEmailStatus;
+            } | null;
+            if (errJson?.error) {
+              edgeErrorNote = errJson.error;
+            }
+          }
+        }
+      } catch {
+        // Fall through to same-origin /api/feedback-email relay
+      }
+    }
+
+    // 2. Fall back to same-origin Express /api/feedback-email route when available
+    if (typeof window !== 'undefined' && accessToken) {
+      try {
+        const res = await fetch('/api/feedback-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            feedbackId: entry.id,
+            category: entry.category,
+            rating: entry.rating,
+            subject: entry.subject,
+            message: entry.message,
+            createdAt: entry.createdAt,
+            senderName: options?.senderName,
+            senderEmail: options?.senderEmail,
+          }),
+        });
+        const json = (await res.json().catch(() => null)) as
+          | {
+              forwarded?: boolean;
+              alreadySent?: boolean;
+              emailStatus?: FeedbackEmailStatus;
+              emailSentAt?: string | null;
+              emailError?: string | null;
+              error?: string;
+            }
+          | null;
+
+        if (res.ok && json?.forwarded) {
+          const updatedEntry: FeedbackEntry = {
+            ...entry,
+            emailStatus: 'sent',
+            emailSentAt: json.emailSentAt || new Date().toISOString(),
+            emailError: null,
+          };
+          return {
+            entry: updatedEntry,
+            emailForwarded: true,
+            alreadySent: Boolean(json.alreadySent),
+            recipientEmail: targetRecipient,
+          };
+        }
+
+        if (json?.error || json?.emailError) {
+          const errNote = json.emailError || json.error || '';
+          const updatedEntry: FeedbackEntry = {
+            ...entry,
+            emailStatus: json.emailStatus || 'failed',
+            emailError: errNote,
+          };
+          return {
+            entry: updatedEntry,
+            emailForwarded: false,
+            alreadySent: false,
+            recipientEmail: targetRecipient,
+            emailNote: errNote,
+          };
+        }
+      } catch {
+        // Ignore network/static-host absence of /api/feedback-email
+      }
+    }
+
+    const fallbackNote =
+      edgeErrorNote ||
+      `Email forwarding to ${targetRecipient} requires RESEND_API_KEY in Supabase Edge Function or server secrets.`;
+
+    return {
+      entry: {
+        ...entry,
+        emailStatus: 'failed',
+        emailError: fallbackNote,
+      },
+      emailForwarded: false,
+      alreadySent: false,
+      recipientEmail: targetRecipient,
+      emailNote: fallbackNote,
+    };
+  },
+
+  async retryFeedbackNotification(
+    entry: FeedbackEntry,
+    sender?: { senderName?: string; senderEmail?: string }
+  ): Promise<{
+    entry: FeedbackEntry;
+    emailForwarded: boolean;
+    alreadySent: boolean;
+    recipientEmail: string;
+    emailNote?: string;
+  }> {
+    return this.triggerFeedbackNotification(entry, {
+      senderName: sender?.senderName,
+      senderEmail: sender?.senderEmail,
+    });
   },
 
   async submitFeedback(
@@ -963,25 +1185,34 @@ export const supabaseService = {
     entry: FeedbackEntry;
     dbSaved: boolean;
     emailForwarded: boolean;
+    alreadySent: boolean;
     recipientEmail: string;
     emailNote?: string;
   }> {
     const client = getSupabaseClient();
     const targetRecipient = DEFAULT_FEEDBACK_RECIPIENT_EMAIL;
+    const generatedFallbackId =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `fb-${Date.now()}`;
+
     const fallbackEntry: FeedbackEntry = {
-      id: `fb-${Date.now()}`,
+      id: generatedFallbackId,
       userId,
       category: payload.category,
       rating: payload.rating,
       subject: payload.subject,
       message: payload.message,
       createdAt: new Date().toISOString(),
+      emailStatus: 'pending',
+      emailSentAt: null,
+      emailError: null,
+      emailAttempts: 0,
     };
 
     let savedEntry = fallbackEntry;
     let dbSaved = false;
     let accessToken = '';
-    let edgeErrorNote = '';
     let dbFallbackNote = '';
 
     if (client) {
@@ -1001,7 +1232,7 @@ export const supabaseService = {
 
       if (effectiveUserId) {
         try {
-          const { data, error } = await client
+          const insertResult = await client
             .from('feedback')
             .insert({
               user_id: effectiveUserId,
@@ -1010,28 +1241,66 @@ export const supabaseService = {
               subject: payload.subject,
               message: payload.message,
             })
-            .select('id, user_id, category, rating, subject, message, created_at')
+            .select(
+              'id, user_id, category, rating, subject, message, created_at, email_status, email_sent_at, email_error, email_attempts'
+            )
             .maybeSingle();
 
-          if (error) {
-            if (isMissingFeedbackTableError(error)) {
+          if (insertResult.error && isMissingFeedbackColumnError(insertResult.error)) {
+            const baseInsert = await client
+              .from('feedback')
+              .insert({
+                user_id: effectiveUserId,
+                category: payload.category,
+                rating: payload.rating,
+                subject: payload.subject,
+                message: payload.message,
+              })
+              .select('id, user_id, category, rating, subject, message, created_at')
+              .maybeSingle();
+
+            if (!baseInsert.error && baseInsert.data) {
+              dbSaved = true;
+              savedEntry = {
+                id: baseInsert.data.id,
+                userId: baseInsert.data.user_id,
+                category: (baseInsert.data.category || payload.category) as FeedbackCategory,
+                rating: Number(baseInsert.data.rating) || payload.rating,
+                subject: baseInsert.data.subject || payload.subject,
+                message: baseInsert.data.message || payload.message,
+                createdAt: baseInsert.data.created_at || fallbackEntry.createdAt,
+                emailStatus: 'pending',
+                emailSentAt: null,
+                emailError: null,
+                emailAttempts: 0,
+              };
+            } else if (baseInsert.error) {
+              console.warn('Supabase feedback insert warning:', extractErrorMessage(baseInsert.error));
+              dbFallbackNote = 'Saved locally on this device.';
+            }
+          } else if (insertResult.error) {
+            if (isMissingFeedbackTableError(insertResult.error)) {
               dbFallbackNote =
                 'Feedback table is not initialized in Supabase yet (run supabase_schema.sql to enable cloud feedback history).';
             } else {
-              console.warn('Supabase feedback insert warning:', extractErrorMessage(error));
+              console.warn('Supabase feedback insert warning:', extractErrorMessage(insertResult.error));
               dbFallbackNote = 'Saved locally on this device.';
             }
           } else {
             dbSaved = true;
-            if (data) {
+            if (insertResult.data) {
               savedEntry = {
-                id: data.id,
-                userId: data.user_id,
-                category: (data.category || payload.category) as FeedbackCategory,
-                rating: Number(data.rating) || payload.rating,
-                subject: data.subject || payload.subject,
-                message: data.message || payload.message,
-                createdAt: data.created_at || fallbackEntry.createdAt,
+                id: insertResult.data.id,
+                userId: insertResult.data.user_id,
+                category: (insertResult.data.category || payload.category) as FeedbackCategory,
+                rating: Number(insertResult.data.rating) || payload.rating,
+                subject: insertResult.data.subject || payload.subject,
+                message: insertResult.data.message || payload.message,
+                createdAt: insertResult.data.created_at || fallbackEntry.createdAt,
+                emailStatus: (insertResult.data.email_status as FeedbackEmailStatus) || 'pending',
+                emailSentAt: insertResult.data.email_sent_at || null,
+                emailError: insertResult.data.email_error || null,
+                emailAttempts: Number(insertResult.data.email_attempts) || 0,
               };
             }
           }
@@ -1040,103 +1309,24 @@ export const supabaseService = {
           dbFallbackNote = 'Saved locally on this device.';
         }
       }
-
-      // 1. Try Supabase Edge Function (send-feedback-email) first
-      if (accessToken) {
-        try {
-          const { data: fnData, error: fnError } = await client.functions.invoke(
-            'send-feedback-email',
-            {
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-              },
-              body: {
-                category: payload.category,
-                rating: payload.rating,
-                subject: payload.subject,
-                message: payload.message,
-              },
-            }
-          );
-
-          if (!fnError && fnData?.success) {
-            return {
-              entry: savedEntry,
-              dbSaved,
-              emailForwarded: true,
-              recipientEmail: fnData.to || targetRecipient,
-            };
-          }
-
-          if (fnError && typeof fnError === 'object' && 'context' in fnError) {
-            const ctx = (fnError as { context?: Response }).context;
-            if (ctx && typeof ctx.json === 'function') {
-              const errJson = (await ctx.json().catch(() => null)) as { error?: string } | null;
-              if (errJson?.error) {
-                edgeErrorNote = errJson.error;
-              }
-            }
-          }
-        } catch {
-          // Fall through to same-origin /api/feedback-email relay
-        }
-      }
     }
 
-    // 2. Fall back to same-origin Express /api/feedback-email route when available
-    if (typeof window !== 'undefined' && accessToken) {
-      try {
-        const res = await fetch('/api/feedback-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            category: payload.category,
-            rating: payload.rating,
-            subject: payload.subject,
-            message: payload.message,
-            senderName: payload.senderName,
-            senderEmail: payload.senderEmail,
-          }),
-        });
-        const json = (await res.json().catch(() => null)) as
-          | { forwarded?: boolean; to?: string; error?: string }
-          | null;
-
-        if (res.ok && json?.forwarded) {
-          return {
-            entry: savedEntry,
-            dbSaved,
-            emailForwarded: true,
-            recipientEmail: json.to || targetRecipient,
-          };
-        }
-
-        if (json?.error) {
-          return {
-            entry: savedEntry,
-            dbSaved,
-            emailForwarded: false,
-            recipientEmail: json.to || targetRecipient,
-            emailNote: json.error,
-          };
-        }
-      } catch {
-        // Ignore network/static-host absence of /api/feedback-email
-      }
-    }
+    // Feedback is already saved; now trigger automatic email notification.
+    // Failure to deliver email never deletes or discards the saved feedback entry.
+    const notifyResult = await this.triggerFeedbackNotification(savedEntry, {
+      senderName: payload.senderName,
+      senderEmail: payload.senderEmail,
+      accessToken,
+      dbSaved,
+    });
 
     return {
-      entry: savedEntry,
+      entry: notifyResult.entry,
       dbSaved,
-      emailForwarded: false,
-      recipientEmail: targetRecipient,
-      emailNote:
-        edgeErrorNote ||
-        dbFallbackNote ||
-        `Email forwarding to ${targetRecipient} requires RESEND_API_KEY in server or Supabase Edge Function secrets.`,
+      emailForwarded: notifyResult.emailForwarded,
+      alreadySent: notifyResult.alreadySent,
+      recipientEmail: notifyResult.recipientEmail || targetRecipient,
+      emailNote: notifyResult.emailNote || dbFallbackNote || undefined,
     };
   },
 
