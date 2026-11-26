@@ -257,7 +257,7 @@ export const CalendarView: React.FC = () => {
                 <div
                   key={dateStr}
                   onClick={() => setSelectedDateStr(dateStr)}
-                  className={`min-h-[64px] sm:min-h-[96px] p-1 sm:p-2 border-r border-b border-outline-variant/70 transition-colors cursor-pointer flex flex-col ${
+                  className={`min-w-0 min-h-[64px] sm:min-h-[96px] p-1 sm:p-2 border-r border-b border-outline-variant/70 transition-colors cursor-pointer flex flex-col ${
                     isSelected
                       ? 'bg-primary-fixed/40 ring-1 ring-inset ring-primary-deep'
                       : 'hover:bg-surface-container-low/60'
@@ -406,18 +406,18 @@ export const CalendarView: React.FC = () => {
                   key={item.id}
                   className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${item.color}`}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs font-bold px-2 py-1 rounded bg-surface-container-lowest/75">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <span className="font-mono text-xs font-bold px-2 py-1 rounded bg-surface-container-lowest/75 flex-shrink-0">
                       {item.startTime || '12:00'}
                     </span>
-                    <div>
-                      <h4 className="font-bold text-sm">{item.title}</h4>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-bold text-sm truncate">{item.title}</h4>
                       {item.description && (
-                        <p className="text-xs opacity-90">{item.description}</p>
+                        <p className="text-xs opacity-90 truncate">{item.description}</p>
                       )}
                     </div>
                   </div>
-                  <span className="font-label-xs text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-surface-container-lowest/75">
+                  <span className="font-label-xs text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-surface-container-lowest/75 flex-shrink-0">
                     {item.type}
                   </span>
                 </div>
@@ -456,7 +456,7 @@ export const CalendarView: React.FC = () => {
                   <div className="w-10 h-9 rounded-lg bg-primary-fixed text-on-primary-fixed-variant flex items-center justify-center font-bold text-[11px] font-mono flex-shrink-0">
                     {item.startTime ? item.startTime.substring(0, 5) : 'All'}
                   </div>
-                  <div className="truncate">
+                  <div className="min-w-0 flex-1 truncate">
                     <span className="font-title-sm text-xs sm:text-sm text-on-surface font-bold block truncate">
                       {item.title}
                     </span>

@@ -142,29 +142,29 @@ export const AnalyticsView: React.FC = () => {
 
       {/* Cashflow Summary: Income vs Transfers */}
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
-        <div className="bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 border border-outline-variant shadow-sm flex items-center gap-3">
+        <div className="min-w-0 bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 border border-outline-variant shadow-sm flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary-fixed text-primary-ink flex items-center justify-center flex-shrink-0">
             <span className="material-symbols-outlined text-[20px]">savings</span>
           </div>
-          <div>
-            <span className="font-label-xs text-[10px] text-on-surface-variant uppercase font-bold tracking-wide block">
+          <div className="min-w-0 flex-1">
+            <span className="font-label-xs text-[10px] text-on-surface-variant uppercase font-bold tracking-wide block truncate">
               Total Inflow (Income)
             </span>
-            <span className="text-base sm:text-lg text-primary-ink font-extrabold tabular-nums">
+            <span className="text-base sm:text-lg text-primary-ink font-extrabold tabular-nums block truncate">
               +{formatRupee(totalIncome)}
             </span>
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 border border-outline-variant shadow-sm flex items-center gap-3">
+        <div className="min-w-0 bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 border border-outline-variant shadow-sm flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center justify-center flex-shrink-0">
             <span className="material-symbols-outlined text-[20px]">sync_alt</span>
           </div>
-          <div>
-            <span className="font-label-xs text-[10px] text-on-surface-variant uppercase font-bold tracking-wide block">
+          <div className="min-w-0 flex-1">
+            <span className="font-label-xs text-[10px] text-on-surface-variant uppercase font-bold tracking-wide block truncate">
               Internal Transfers
             </span>
-            <span className="text-base sm:text-lg text-on-surface font-extrabold tabular-nums">
+            <span className="text-base sm:text-lg text-on-surface font-extrabold tabular-nums block truncate">
               {formatRupee(totalTransfers)}
             </span>
           </div>

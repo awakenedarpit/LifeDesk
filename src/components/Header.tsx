@@ -39,14 +39,14 @@ export const Header: React.FC = () => {
             {(activeTab === 'profile' || activeTab === 'settings') && 'Student Profile & Settings'}
           </h1>
           {user.course && (
-            <span className="hidden xl:inline-flex font-label-xs text-[11px] px-2.5 py-1 rounded-lg bg-surface-container-low border border-outline-variant text-on-surface-variant font-semibold whitespace-nowrap truncate max-w-[240px]">
+            <span className="hidden xl:inline-block font-label-xs text-[11px] px-2.5 py-1 rounded-lg bg-surface-container-low border border-outline-variant text-on-surface-variant font-semibold truncate max-w-[240px]">
               {user.course}{user.currentSemester ? ` • ${user.currentSemester}` : ''}
             </span>
           )}
         </div>
 
         {/* Desktop Global Search Bar */}
-        <div className="hidden md:block flex-1 max-w-sm lg:max-w-md mx-2">
+        <div className="hidden md:block flex-1 min-w-0 max-w-sm lg:max-w-md mx-2">
           <GlobalSearchBar variant="desktop" />
         </div>
 

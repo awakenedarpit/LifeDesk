@@ -24,7 +24,7 @@ export const BottomNav: React.FC = () => {
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`flex-1 flex flex-col items-center justify-center h-full py-1 transition-all group relative select-none touch-manipulation min-w-[56px] ${
+              className={`flex-1 min-w-0 flex flex-col items-center justify-center h-full py-1 transition-all group relative select-none touch-manipulation ${
                 isActive ? 'text-primary-ink font-bold' : 'text-on-surface-variant hover:text-on-surface'
               }`}
               type="button"
@@ -39,7 +39,7 @@ export const BottomNav: React.FC = () => {
                   </span>
                 )}
               </div>
-              <span className={`font-label-xs text-[10px] mt-1 ${isActive ? 'font-bold' : 'font-medium'}`}>
+              <span className={`font-label-xs text-[10px] mt-1 max-w-full truncate px-0.5 ${isActive ? 'font-bold' : 'font-medium'}`}>
                 {item.label}
               </span>
               {isActive && <span className="absolute top-0 w-8 h-1 rounded-b-full bg-primary" />}

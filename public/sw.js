@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lifedesk-v2';
+const CACHE_NAME = 'lifedesk-v3';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -10,7 +10,8 @@ const APP_SHELL = [
   '/lifedesk-pwa-maskable-512.png',
   '/assets/lifedesk-logo.png',
   '/assets/lifedesk-logo-dark.png',
-  '/assets/lifedesk-mark.png'
+  '/assets/lifedesk-mark.png',
+  '/fonts/material-symbols-outlined.woff2'
 ];
 
 self.addEventListener('install', (event) => {

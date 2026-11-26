@@ -84,16 +84,16 @@ export const MoneyView: React.FC = () => {
       {/* Main Balances Breakdown Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
         {/* Liquid Total */}
-        <div className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-2">
-            <span className="w-8 h-8 rounded-xl bg-primary-fixed text-primary-ink flex items-center justify-center">
+        <div className="min-w-0 bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-1.5 mb-2">
+            <span className="w-8 h-8 rounded-xl bg-primary-fixed text-primary-ink flex items-center justify-center flex-shrink-0">
               <span className="material-symbols-outlined text-[19px]">account_balance_wallet</span>
             </span>
-            <span className="font-label-xs text-[10px] bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-full font-bold">
+            <span className="font-label-xs text-[10px] bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-full font-bold truncate">
               Liquid
             </span>
           </div>
-          <div>
+          <div className="min-w-0">
             <span className="font-label-xs text-[10px] text-on-surface-variant block uppercase font-bold tracking-wider">
               Available Money
             </span>
@@ -109,18 +109,18 @@ export const MoneyView: React.FC = () => {
         {/* UPI Balance */}
         <div
           onClick={() => openModal('balance')}
-          className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant flex flex-col justify-between cursor-pointer hover:border-primary transition-colors"
+          className="min-w-0 bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant flex flex-col justify-between cursor-pointer hover:border-primary transition-colors"
           title="Click to calibrate UPI"
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="w-8 h-8 rounded-xl bg-surface-container-low text-primary-ink flex items-center justify-center border border-outline-variant/60">
+          <div className="flex items-center justify-between gap-1.5 mb-2">
+            <span className="w-8 h-8 rounded-xl bg-surface-container-low text-primary-ink flex items-center justify-center flex-shrink-0 border border-outline-variant/60">
               <span className="material-symbols-outlined text-[19px]">phone_android</span>
             </span>
             <span className="material-symbols-outlined text-[16px] text-on-surface-variant">
               tune
             </span>
           </div>
-          <div>
+          <div className="min-w-0">
             <span className="font-label-xs text-[10px] text-on-surface-variant block uppercase font-bold tracking-wider">
               UPI Balance
             </span>
@@ -136,18 +136,18 @@ export const MoneyView: React.FC = () => {
         {/* Cash Balance */}
         <div
           onClick={() => openModal('balance')}
-          className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant flex flex-col justify-between cursor-pointer hover:border-primary transition-colors"
+          className="min-w-0 bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant flex flex-col justify-between cursor-pointer hover:border-primary transition-colors"
           title="Click to calibrate Cash in Wallet"
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="w-8 h-8 rounded-xl bg-surface-container-low text-primary-ink flex items-center justify-center border border-outline-variant/60">
+          <div className="flex items-center justify-between gap-1.5 mb-2">
+            <span className="w-8 h-8 rounded-xl bg-surface-container-low text-primary-ink flex items-center justify-center flex-shrink-0 border border-outline-variant/60">
               <span className="material-symbols-outlined text-[19px]">payments</span>
             </span>
             <span className="material-symbols-outlined text-[16px] text-on-surface-variant">
               tune
             </span>
           </div>
-          <div>
+          <div className="min-w-0">
             <span className="font-label-xs text-[10px] text-on-surface-variant block uppercase font-bold tracking-wider">
               Physical Cash
             </span>
@@ -161,16 +161,16 @@ export const MoneyView: React.FC = () => {
         </div>
 
         {/* Card Spending */}
-        <div className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-2">
-            <span className="w-8 h-8 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center justify-center">
+        <div className="min-w-0 bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-1.5 mb-2">
+            <span className="w-8 h-8 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center justify-center flex-shrink-0">
               <span className="material-symbols-outlined text-[19px]">credit_card</span>
             </span>
-            <span className="font-label-xs text-[10px] bg-tertiary-fixed text-on-tertiary-fixed-variant px-2 py-0.5 rounded-full font-bold">
+            <span className="font-label-xs text-[10px] bg-tertiary-fixed text-on-tertiary-fixed-variant px-2 py-0.5 rounded-full font-bold truncate">
               Card
             </span>
           </div>
-          <div>
+          <div className="min-w-0">
             <span className="font-label-xs text-[10px] text-on-surface-variant block uppercase font-bold tracking-wider">
               Card Spending
             </span>
@@ -349,7 +349,7 @@ export const MoneyView: React.FC = () => {
                       <div className="w-10 h-10 rounded-xl bg-primary-fixed text-primary-ink flex items-center justify-center flex-shrink-0">
                         <span className="material-symbols-outlined text-[20px]">{icon}</span>
                       </div>
-                      <div className="truncate">
+                      <div className="min-w-0 flex-1 truncate">
                         <span className="font-title-sm text-sm text-on-surface font-bold block truncate">
                           {tx.description}
                         </span>

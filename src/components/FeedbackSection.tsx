@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { supabaseService } from '../services/supabaseService';
 import { FeedbackCategory, FeedbackEntry } from '../types';
@@ -20,6 +20,12 @@ const RATING_LABELS: Record<number, string> = {
 
 const getLocalFeedbackKey = (userId: string) => `lifedesk_feedback_${userId || 'anon'}`;
 
+const resolveCurrentPageContext = (): string => {
+  if (typeof window === 'undefined') return 'Profile & Settings (/profile)';
+  const path = window.location.pathname || '/profile';
+  return `Profile & Settings (${path})`;
+};
+
 export const FeedbackSection: React.FC = () => {
   const { user, showToast, isSupabaseConnected } = useApp();
 
@@ -32,11 +38,28 @@ export const FeedbackSection: React.FC = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [submittedConfirmation, setSubmittedConfirmation] = useState<{
     text: string;
-    forwarded: boolean;
+    status: 'sending' | 'sent' | 'failed';
     mailtoHref?: string;
     feedbackId?: string;
   } | null>(null);
   const [history, setHistory] = useState<FeedbackEntry[]>([]);
+  const submittingRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const persistHistory = (next: FeedbackEntry[]) => {
+    try {
+      localStorage.setItem(getLocalFeedbackKey(user.id), JSON.stringify(next));
+    } catch {
+      // Ignore storage quota errors
+    }
+  };
 
   useEffect(() => {
     if (!user.id) return;
@@ -80,6 +103,8 @@ export const FeedbackSection: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current) return;
+
     setFormError(null);
     setSubmittedConfirmation(null);
 
@@ -95,90 +120,168 @@ export const FeedbackSection: React.FC = () => {
       return;
     }
 
+    const pageContext = resolveCurrentPageContext();
+    submittingRef.current = true;
     setIsSubmitting(true);
+
     try {
-      const result = await supabaseService.submitFeedback(user.id, {
+      // Phase 1: Save feedback in Supabase first; never clear form if saving fails.
+      const saved = await supabaseService.saveFeedback(user.id, {
         ...validation.sanitized,
-        senderName: user.fullName,
-        senderEmail: user.email,
+        pageContext,
       });
+
+      const shortId = saved.entry.id.slice(0, 8);
+      const alreadyDelivered = saved.entry.emailStatus === 'sent';
+      const entryInFlight: FeedbackEntry = alreadyDelivered
+        ? saved.entry
+        : { ...saved.entry, emailStatus: 'sending' };
 
       setHistory((prev) => {
         const updated = [
-          result.entry,
-          ...prev.filter((item) => item.id !== result.entry.id),
+          entryInFlight,
+          ...prev.filter((item) => item.id !== entryInFlight.id),
         ].slice(0, 5);
-        try {
-          localStorage.setItem(getLocalFeedbackKey(user.id), JSON.stringify(updated));
-        } catch {
-          // Ignore storage quota errors
-        }
+        persistHistory(updated);
         return updated;
       });
 
+      // Only clear inputs after feedback is confirmed saved
       setSubject('');
       setMessage('');
       setCategory('Feature Request');
       setRating(5);
 
-      const shortId = result.entry.id.slice(0, 8);
-      if (result.emailForwarded) {
+      if (saved.duplicate && alreadyDelivered) {
         setSubmittedConfirmation({
-          forwarded: true,
-          feedbackId: result.entry.id,
-          text: `Thank you! Feedback #${shortId} was saved and emailed to ${result.recipientEmail}.`,
+          status: 'sent',
+          feedbackId: saved.entry.id,
+          text: `This feedback (#${shortId}) was already submitted and emailed.`,
         });
-        showToast(`Feedback sent to ${result.recipientEmail}.`, 'success');
-      } else {
-        const mailtoHref = buildFeedbackMailtoHref({
-          feedbackId: result.entry.id,
-          category: validation.sanitized.category,
-          rating: validation.sanitized.rating,
-          subject: validation.sanitized.subject,
-          message: validation.sanitized.message,
-        });
-        setSubmittedConfirmation({
-          forwarded: false,
-          mailtoHref,
-          feedbackId: result.entry.id,
-          text: result.dbSaved
-            ? `Thank you! Feedback #${shortId} was saved to your account. Email delivery can be retried below.`
-            : `Thank you! Feedback #${shortId} was saved on this device.`,
-        });
-        showToast('Feedback saved! You can retry email delivery anytime.', 'info');
+        showToast('This feedback was already submitted.', 'info');
+        return;
       }
+
+      // Immediate non-blocking confirmation without waiting for Resend round-trip
+      setSubmittedConfirmation({
+        status: 'sending',
+        feedbackId: saved.entry.id,
+        text: saved.duplicate
+          ? `Feedback #${shortId} was already saved. Retrying email notification...`
+          : `Thank you! Feedback #${shortId} has been received and saved.`,
+      });
+      showToast('Feedback saved! Sending email notification...', 'success');
+
+      // Unlock submit button immediately so the user does not wait on email delivery
+      setIsSubmitting(false);
+      submittingRef.current = false;
+
+      // Phase 2: Trigger Supabase Edge Function -> Resend asynchronously
+      const mailtoHref = buildFeedbackMailtoHref({
+        feedbackId: saved.entry.id,
+        category: validation.sanitized.category,
+        rating: validation.sanitized.rating,
+        subject: validation.sanitized.subject,
+        message: validation.sanitized.message,
+        pageContext,
+      });
+
+      void supabaseService
+        .triggerFeedbackNotification(saved.entry, {
+          accessToken: saved.accessToken,
+          dbSaved: saved.dbSaved,
+        })
+        .then((notifyResult) => {
+          if (!mountedRef.current) return;
+
+          setHistory((prev) => {
+            const updated = prev.map((item) =>
+              item.id === saved.entry.id ? notifyResult.entry : item
+            );
+            persistHistory(updated);
+            return updated;
+          });
+
+          if (notifyResult.emailForwarded) {
+            setSubmittedConfirmation((curr) =>
+              curr?.feedbackId === saved.entry.id
+                ? {
+                    status: 'sent',
+                    feedbackId: saved.entry.id,
+                    text: `Thank you! Feedback #${shortId} was saved and emailed to ${notifyResult.recipientEmail}.`,
+                  }
+                : curr
+            );
+          } else {
+            setSubmittedConfirmation((curr) =>
+              curr?.feedbackId === saved.entry.id
+                ? {
+                    status: 'failed',
+                    mailtoHref,
+                    feedbackId: saved.entry.id,
+                    text: `Thank you! Feedback #${shortId} was safely saved, but automated email delivery could not be completed yet. You can retry below.`,
+                  }
+                : curr
+            );
+          }
+        })
+        .catch(() => {
+          if (!mountedRef.current) return;
+          setHistory((prev) => {
+            const updated = prev.map((item) =>
+              item.id === saved.entry.id
+                ? { ...item, emailStatus: 'failed' as const }
+                : item
+            );
+            persistHistory(updated);
+            return updated;
+          });
+          setSubmittedConfirmation((curr) =>
+            curr?.feedbackId === saved.entry.id
+              ? {
+                  status: 'failed',
+                  mailtoHref,
+                  feedbackId: saved.entry.id,
+                  text: `Thank you! Feedback #${shortId} was safely saved, but automated email delivery could not be completed yet. You can retry below.`,
+                }
+              : curr
+          );
+        });
     } catch (err: unknown) {
       const errMsg = extractErrorMessage(
         err,
-        'Could not submit feedback right now. Please try again.'
+        'Could not save your feedback right now. Please try again.'
       );
       setFormError(errMsg);
       showToast(errMsg, 'error');
     } finally {
       setIsSubmitting(false);
+      submittingRef.current = false;
     }
   };
 
   const handleRetryEmail = async (entry: FeedbackEntry) => {
-    if (retryingId || entry.emailStatus === 'sent') return;
+    if (retryingId || entry.emailStatus === 'sent' || entry.emailStatus === 'sending') return;
     setRetryingId(entry.id);
     try {
-      const result = await supabaseService.retryFeedbackNotification(entry, {
-        senderName: user.fullName,
-        senderEmail: user.email,
-      });
+      const result = await supabaseService.retryFeedbackNotification(entry);
 
       setHistory((prev) => {
         const updated = prev.map((item) => (item.id === entry.id ? result.entry : item));
-        try {
-          localStorage.setItem(getLocalFeedbackKey(user.id), JSON.stringify(updated));
-        } catch {
-          // Ignore storage quota errors
-        }
+        persistHistory(updated);
         return updated;
       });
 
       if (result.emailForwarded) {
+        setSubmittedConfirmation((curr) =>
+          curr?.feedbackId === entry.id
+            ? {
+                status: 'sent',
+                feedbackId: entry.id,
+                text: `Thank you! Feedback #${entry.id.slice(0, 8)} was saved and emailed to ${result.recipientEmail}.`,
+              }
+            : curr
+        );
         showToast(
           result.alreadySent
             ? 'Email notification was already delivered for this feedback.'
@@ -241,9 +344,9 @@ export const FeedbackSection: React.FC = () => {
             <span className="material-symbols-outlined text-primary-ink text-[18px] flex-shrink-0">
               check_circle
             </span>
-            <span className="font-medium">{submittedConfirmation.text}</span>
+            <span className="font-medium break-words">{submittedConfirmation.text}</span>
           </div>
-          {!submittedConfirmation.forwarded && submittedConfirmation.mailtoHref && (
+          {submittedConfirmation.status === 'failed' && submittedConfirmation.mailtoHref && (
             <a
               href={submittedConfirmation.mailtoHref}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container-lowest border border-outline-variant text-primary-ink font-semibold hover:bg-surface-container-low transition-colors whitespace-nowrap"
@@ -428,6 +531,7 @@ export const FeedbackSection: React.FC = () => {
           <div className="flex flex-col gap-2">
             {history.map((entry) => {
               const isSent = entry.emailStatus === 'sent';
+              const isSending = entry.emailStatus === 'sending';
               const isRetrying = retryingId === entry.id;
               return (
                 <div
@@ -443,7 +547,7 @@ export const FeedbackSection: React.FC = () => {
                         {entry.subject}
                       </span>
                     </div>
-                    <p className="text-xs text-on-surface-variant mt-1 line-clamp-2">
+                    <p className="text-xs text-on-surface-variant mt-1 line-clamp-2 break-words">
                       {entry.message}
                     </p>
                     <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
@@ -453,6 +557,10 @@ export const FeedbackSection: React.FC = () => {
                       {isSent ? (
                         <span className="text-[11px] font-semibold text-primary-ink">
                           Email delivered
+                        </span>
+                      ) : isSending ? (
+                        <span className="text-[11px] font-medium text-on-surface-variant">
+                          Sending email notification...
                         </span>
                       ) : (
                         <button

@@ -199,11 +199,11 @@ export const AuthView: React.FC = () => {
   return (
     <div className="min-h-screen w-full bg-surface text-on-surface flex flex-col">
       {/* Top utility bar */}
-      <header className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <header className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={() => handleModeSwitch('login')}
-          className="flex items-center focus:outline-none"
+          className="flex items-center min-w-0 focus:outline-none"
           aria-label="LifeDesk Home"
         >
           <BrandLogo variant="full" className="h-8 sm:h-9 w-auto" />
@@ -283,7 +283,7 @@ export const AuthView: React.FC = () => {
                   <span className="w-10 h-10 rounded-xl bg-surface-container text-primary-ink flex items-center justify-center flex-shrink-0">
                     <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
                   </span>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <h2 className="font-title-sm text-sm text-on-surface font-bold">
                       {item.title}
                     </h2>
@@ -348,7 +348,7 @@ export const AuthView: React.FC = () => {
                     <span className="material-symbols-outlined text-primary-ink text-[20px] mt-0.5 flex-shrink-0">
                       mark_email_unread
                     </span>
-                    <div className="text-xs leading-relaxed">
+                    <div className="text-xs leading-relaxed min-w-0 flex-1 break-words">
                       <p className="font-bold text-on-surface">Verify your email address</p>
                       <p className="text-on-surface-variant mt-0.5">
                         We sent a verification link to <strong className="text-on-surface">{verificationPendingEmail}</strong>. Open the link in your inbox, then sign in.
@@ -389,7 +389,7 @@ export const AuthView: React.FC = () => {
                     <span className="material-symbols-outlined text-[18px] flex-shrink-0 mt-0.5">
                       error
                     </span>
-                    <span className="leading-relaxed font-medium">{displayedError}</span>
+                    <span className="leading-relaxed font-medium min-w-0 flex-1 break-words">{displayedError}</span>
                   </div>
                   {authError?.canResendVerification && !verificationPendingEmail && (
                     <button
@@ -408,11 +408,11 @@ export const AuthView: React.FC = () => {
               {!isSupabaseConnected && (
                 <div className="p-3 rounded-2xl bg-surface-container-low border border-outline-variant text-xs flex flex-col gap-2">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2 text-on-surface-variant">
+                    <div className="flex items-start gap-2 text-on-surface-variant min-w-0 flex-1">
                       <span className="material-symbols-outlined text-primary-ink text-[18px] mt-0.5 flex-shrink-0">
                         cloud_off
                       </span>
-                      <span>
+                      <span className="min-w-0 flex-1 break-words">
                         <strong className="text-on-surface">Supabase keys required:</strong> Set{' '}
                         <code className="font-mono text-[11px]">VITE_SUPABASE_URL</code> and{' '}
                         <code className="font-mono text-[11px]">VITE_SUPABASE_ANON_KEY</code> or connect below.
@@ -888,7 +888,7 @@ export const AuthView: React.FC = () => {
 
               {/* Footer */}
               <div className="border-t border-outline-variant/60 pt-3 flex flex-col items-center gap-1.5 text-[11px] text-on-surface-variant">
-                <div className="flex items-center justify-center gap-1.5">
+                <div className="flex items-center justify-center gap-1.5 text-center">
                   <span className="material-symbols-outlined text-[14px] text-primary-ink">lock</span>
                   <span>Protected by Supabase Auth &amp; Row-Level Security</span>
                 </div>

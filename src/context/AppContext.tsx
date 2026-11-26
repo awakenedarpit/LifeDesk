@@ -173,7 +173,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(() => {
     return getSupabaseConfig().isConfigured;
   });
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    return getSupabaseConfig().isConfigured;
+  });
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;

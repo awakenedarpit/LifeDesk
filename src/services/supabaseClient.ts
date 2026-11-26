@@ -232,6 +232,7 @@ CREATE TABLE IF NOT EXISTS public.feedback (
   rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
   subject TEXT NOT NULL,
   message TEXT NOT NULL,
+  page_context TEXT DEFAULT '',
   email_status TEXT NOT NULL DEFAULT 'pending' CHECK (email_status IN ('pending', 'sending', 'sent', 'failed')),
   email_sent_at TIMESTAMPTZ,
   email_error TEXT,
@@ -242,6 +243,7 @@ CREATE TABLE IF NOT EXISTS public.feedback (
 );
 
 ALTER TABLE public.feedback
+  ADD COLUMN IF NOT EXISTS page_context TEXT DEFAULT '',
   ADD COLUMN IF NOT EXISTS email_status TEXT NOT NULL DEFAULT 'pending',
   ADD COLUMN IF NOT EXISTS email_sent_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS email_error TEXT,
@@ -250,6 +252,7 @@ ALTER TABLE public.feedback
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
 CREATE INDEX IF NOT EXISTS idx_feedback_user_created ON public.feedback (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feedback_user_updated ON public.feedback (user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_feedback_email_status ON public.feedback (email_status) WHERE email_status IN ('pending', 'failed');
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;

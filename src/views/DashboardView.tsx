@@ -89,7 +89,7 @@ export const DashboardView: React.FC = () => {
           <h1 className="font-headline-lg-mobile sm:font-headline-lg text-headline-lg-mobile sm:text-headline-lg text-on-surface tracking-tight font-bold truncate">
             Welcome back, {user.fullName.split(' ')[0]}
           </h1>
-          <p className="font-body-sm text-body-sm text-on-surface-variant truncate">
+          <p className="font-body-sm text-body-sm text-on-surface-variant sm:truncate">
             Here is your student command center overview for today.
           </p>
         </div>
@@ -145,52 +145,52 @@ export const DashboardView: React.FC = () => {
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
         <div
           onClick={() => setActiveTab('tasks')}
-          className="bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 shadow-xs border border-outline-variant flex flex-col justify-between cursor-pointer hover:border-primary-deep transition-all group"
+          className="min-w-0 bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 shadow-xs border border-outline-variant flex flex-col justify-between cursor-pointer hover:border-primary-deep transition-all group"
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="w-8 h-8 rounded-xl bg-surface-container text-primary-ink flex items-center justify-center group-hover:scale-105 transition-transform">
+          <div className="flex items-center justify-between gap-1.5 mb-2 min-w-0">
+            <span className="w-8 h-8 rounded-xl bg-surface-container text-primary-ink flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
               <span className="material-symbols-outlined text-[19px]">checklist</span>
             </span>
             {overdueCount > 0 ? (
-              <span className="font-label-xs text-[10px] bg-error-container text-on-error-container px-2 py-0.5 rounded-md font-bold">
+              <span className="font-label-xs text-[10px] bg-error-container text-on-error-container px-2 py-0.5 rounded-md font-bold truncate">
                 {overdueCount} Overdue
               </span>
             ) : todayTasks.length > 0 ? (
-              <span className="font-label-xs text-[10px] bg-surface-container text-primary-ink px-2 py-0.5 rounded-md font-bold">
+              <span className="font-label-xs text-[10px] bg-surface-container text-primary-ink px-2 py-0.5 rounded-md font-bold truncate">
                 {todayTasks.length} Today
               </span>
             ) : null}
           </div>
-          <div>
+          <div className="min-w-0">
             <span className="font-label-xs text-[10px] text-on-surface-variant block uppercase tracking-wide font-bold">
               Tasks
             </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
+            <div className="flex items-baseline gap-1 mt-0.5 min-w-0">
               <span className="text-xl sm:text-2xl text-on-surface font-extrabold leading-none tabular-nums">
                 {pendingTasksCount}
               </span>
-              <span className="text-xs text-on-surface-variant">pending</span>
+              <span className="text-xs text-on-surface-variant truncate">pending</span>
             </div>
           </div>
         </div>
 
         <div
           onClick={() => setActiveTab('calendar')}
-          className="bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 shadow-xs border border-outline-variant flex flex-col justify-between cursor-pointer hover:border-primary-deep transition-all group"
+          className="min-w-0 bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 shadow-xs border border-outline-variant flex flex-col justify-between cursor-pointer hover:border-primary-deep transition-all group"
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="w-8 h-8 rounded-xl bg-surface-container text-primary-ink flex items-center justify-center group-hover:scale-105 transition-transform">
+          <div className="flex items-center justify-between gap-1.5 mb-2 min-w-0">
+            <span className="w-8 h-8 rounded-xl bg-surface-container text-primary-ink flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
               <span className="material-symbols-outlined text-[19px]">alarm</span>
             </span>
-            <span className="font-label-xs text-[10px] bg-surface-container-low border border-outline-variant text-on-surface-variant px-2 py-0.5 rounded-md font-bold">
+            <span className="font-label-xs text-[10px] bg-surface-container-low border border-outline-variant text-on-surface-variant px-2 py-0.5 rounded-md font-bold truncate">
               Due soon
             </span>
           </div>
-          <div>
+          <div className="min-w-0">
             <span className="font-label-xs text-[10px] text-on-surface-variant block uppercase tracking-wide font-bold">
               Deadlines
             </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
+            <div className="flex items-baseline gap-1 mt-0.5 min-w-0">
               <span className="text-xl sm:text-2xl text-on-surface font-extrabold leading-none tabular-nums">
                 {dueSoonCount}
               </span>
@@ -201,21 +201,21 @@ export const DashboardView: React.FC = () => {
 
         <div
           onClick={() => setActiveTab('hackathons')}
-          className="bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 shadow-xs border border-outline-variant flex flex-col justify-between cursor-pointer hover:border-primary-deep transition-all group"
+          className="min-w-0 bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 shadow-xs border border-outline-variant flex flex-col justify-between cursor-pointer hover:border-primary-deep transition-all group"
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="w-8 h-8 rounded-xl bg-surface-container text-primary-ink flex items-center justify-center group-hover:scale-105 transition-transform">
+          <div className="flex items-center justify-between gap-1.5 mb-2 min-w-0">
+            <span className="w-8 h-8 rounded-xl bg-surface-container text-primary-ink flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
               <span className="material-symbols-outlined text-[19px]">terminal</span>
             </span>
             <span className="font-label-xs text-[10px] bg-tertiary-fixed text-on-tertiary-fixed-variant px-2 py-0.5 rounded-md font-bold truncate max-w-[90px]">
               {topHackathon ? topHackathon.name.slice(0, 12) : 'Active'}
             </span>
           </div>
-          <div>
+          <div className="min-w-0">
             <span className="font-label-xs text-[10px] text-on-surface-variant block uppercase tracking-wide font-bold">
               Hackathons
             </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
+            <div className="flex items-baseline gap-1 mt-0.5 min-w-0">
               <span className="text-base sm:text-lg text-on-surface font-bold truncate">
                 {topHackathon ? topHackathon.currentStage : `${activeHackathons.length} Tracked`}
               </span>
@@ -225,21 +225,21 @@ export const DashboardView: React.FC = () => {
 
         <div
           onClick={() => setActiveTab('money')}
-          className="bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 shadow-xs border border-outline-variant flex flex-col justify-between cursor-pointer hover:border-primary-deep transition-all group"
+          className="min-w-0 bg-surface-container-lowest rounded-2xl p-3.5 sm:p-4 shadow-xs border border-outline-variant flex flex-col justify-between cursor-pointer hover:border-primary-deep transition-all group"
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="w-8 h-8 rounded-xl bg-surface-container text-primary-ink flex items-center justify-center group-hover:scale-105 transition-transform">
+          <div className="flex items-center justify-between gap-1.5 mb-2 min-w-0">
+            <span className="w-8 h-8 rounded-xl bg-surface-container text-primary-ink flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
               <span className="material-symbols-outlined text-[19px]">currency_rupee</span>
             </span>
-            <span className="font-label-xs text-[10px] bg-surface-container text-primary-ink px-2 py-0.5 rounded-md font-bold">
+            <span className="font-label-xs text-[10px] bg-surface-container text-primary-ink px-2 py-0.5 rounded-md font-bold truncate">
               Liquid
             </span>
           </div>
-          <div>
+          <div className="min-w-0">
             <span className="font-label-xs text-[10px] text-on-surface-variant block uppercase tracking-wide font-bold">
               Available
             </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
+            <div className="flex items-baseline gap-1 mt-0.5 min-w-0">
               <span className="text-xl sm:text-2xl text-on-surface font-extrabold leading-none truncate tabular-nums">
                 {formatRupee(availableMoney)}
               </span>
@@ -251,15 +251,15 @@ export const DashboardView: React.FC = () => {
       {/* 3. Treasury Overview */}
       <section className="bg-surface-container-lowest rounded-2xl p-4 sm:p-5 shadow-xs border border-outline-variant flex flex-col gap-3.5">
         <div className="flex items-center justify-between flex-wrap gap-2.5">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('money')}>
+          <div className="flex items-center gap-3 cursor-pointer min-w-0" onClick={() => setActiveTab('money')}>
             <div className="w-10 h-10 rounded-xl bg-surface-container text-primary-ink flex items-center justify-center flex-shrink-0">
               <span className="material-symbols-outlined text-[22px]">account_balance_wallet</span>
             </div>
-            <div>
+            <div className="min-w-0">
               <span className="font-label-xs text-[10px] text-on-surface-variant block uppercase tracking-wider font-bold">
                 Treasury Overview (Available Liquid)
               </span>
-              <span className="font-currency-stat text-xl sm:text-2xl text-on-surface font-extrabold leading-tight">
+              <span className="font-currency-stat text-xl sm:text-2xl text-on-surface font-extrabold leading-tight block truncate">
                 {formatRupee(availableMoney)}
               </span>
             </div>
@@ -288,50 +288,50 @@ export const DashboardView: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-2.5 sm:gap-3 bg-surface-container-low p-3 rounded-xl border border-outline-variant">
-          <div className="flex flex-col">
+          <div className="flex flex-col min-w-0">
             <span className="font-label-xs text-xs text-on-surface-variant flex items-center gap-1 font-medium">
               <span className="material-symbols-outlined text-[14px]">calendar_today</span> Month's Expenses
             </span>
-            <span className="font-title-sm text-base sm:text-lg text-on-surface font-bold mt-0.5 tabular-nums">
+            <span className="font-title-sm text-base sm:text-lg text-on-surface font-bold mt-0.5 tabular-nums truncate">
               {formatRupee(monthExpenses)}
             </span>
             <span className="text-[11px] text-on-surface-variant">Includes all category expenses</span>
           </div>
-          <div className="flex flex-col">
+          <div className="flex flex-col min-w-0">
             <span className="font-label-xs text-xs text-on-surface-variant flex items-center gap-1 font-medium">
               <span className="material-symbols-outlined text-[14px]">credit_card</span> Card Spending
             </span>
-            <span className="font-title-sm text-base sm:text-lg text-on-surface font-bold mt-0.5 tabular-nums">
+            <span className="font-title-sm text-base sm:text-lg text-on-surface font-bold mt-0.5 tabular-nums truncate">
               {formatRupee(cardSpending)}
             </span>
             <span className="text-[11px] text-primary-ink font-semibold">Billed separately • No liquid debit</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 pt-1">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 pt-1">
           <button
-            className="h-10 px-2 bg-primary text-on-primary rounded-xl font-label-md text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 hover:bg-primary-container hover:text-on-primary-container transition-all"
+            className="min-w-0 h-10 px-1.5 sm:px-2 bg-primary text-on-primary rounded-xl font-label-md text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1 sm:gap-1.5 shadow-xs active:scale-95 hover:bg-primary-container hover:text-on-primary-container transition-all"
             onClick={() => openModal('expense')}
             type="button"
           >
-            <span className="material-symbols-outlined text-[18px]">add_circle</span>
-            <span>Log Expense</span>
+            <span className="material-symbols-outlined text-[15px] sm:text-[18px]">add_circle</span>
+            <span className="truncate">Log Expense</span>
           </button>
           <button
-            className="h-10 px-2 bg-surface-container-low border border-outline-variant text-on-surface rounded-xl font-label-md text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-surface-container active:scale-95 transition-all"
+            className="min-w-0 h-10 px-1.5 sm:px-2 bg-surface-container-low border border-outline-variant text-on-surface rounded-xl font-label-md text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1 sm:gap-1.5 hover:bg-surface-container active:scale-95 transition-all"
             onClick={() => openModal('income')}
             type="button"
           >
-            <span className="material-symbols-outlined text-[18px]">savings</span>
-            <span>Add Money</span>
+            <span className="material-symbols-outlined text-[15px] sm:text-[18px]">savings</span>
+            <span className="truncate">Add Money</span>
           </button>
           <button
-            className="h-10 px-2 bg-surface-container-low border border-outline-variant text-on-surface rounded-xl font-label-md text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-surface-container active:scale-95 transition-all"
+            className="min-w-0 h-10 px-1.5 sm:px-2 bg-surface-container-low border border-outline-variant text-on-surface rounded-xl font-label-md text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1 sm:gap-1.5 hover:bg-surface-container active:scale-95 transition-all"
             onClick={() => openModal('transfer')}
             type="button"
           >
-            <span className="material-symbols-outlined text-[18px]">sync_alt</span>
-            <span>Transfer</span>
+            <span className="material-symbols-outlined text-[15px] sm:text-[18px]">sync_alt</span>
+            <span className="truncate">Transfer</span>
           </button>
         </div>
       </section>
@@ -529,7 +529,7 @@ export const DashboardView: React.FC = () => {
                       <span className="text-[10px] leading-none">{topText}</span>
                       <span className="text-xs leading-none mt-1 tabular-nums">{btmText}</span>
                     </div>
-                    <div className="truncate">
+                    <div className="min-w-0 flex-1 truncate">
                       <span className="font-title-sm text-sm sm:text-base text-on-surface font-semibold block truncate">
                         {dl.title}
                       </span>
@@ -602,7 +602,7 @@ export const DashboardView: React.FC = () => {
                     <div className="w-10 h-10 rounded-xl bg-surface-container text-primary-ink flex items-center justify-center flex-shrink-0">
                       <span className="material-symbols-outlined text-[19px]">{icon}</span>
                     </div>
-                    <div className="truncate">
+                    <div className="min-w-0 flex-1 truncate">
                       <span className="font-body-md text-sm sm:text-base text-on-surface font-semibold block truncate">
                         {tx.description}
                       </span>

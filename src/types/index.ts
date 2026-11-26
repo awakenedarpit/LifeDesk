@@ -155,6 +155,7 @@ export interface FeedbackEntry {
   rating: number;
   subject: string;
   message: string;
+  pageContext?: string;
   createdAt: string;
   emailStatus?: FeedbackEmailStatus;
   emailSentAt?: string | null;

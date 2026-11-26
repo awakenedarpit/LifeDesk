@@ -142,8 +142,8 @@ export const TasksView: React.FC = () => {
                 {task.participationType === 'Team' && <span className="font-label-xs text-[10px] px-2 py-0.5 rounded-full font-bold bg-primary-fixed text-on-primary-fixed-variant">Team{task.teamName ? ` • ${task.teamName}` : ''}</span>}
                 <span className="font-label-xs text-xs text-on-surface-variant font-medium ml-auto flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">schedule</span>{formatTaskTime(task.deadline)}</span>
               </div>
-              <h3 className={`font-body-md text-sm sm:text-base text-on-surface font-semibold mt-1 ${isCompleted ? 'line-through text-on-surface-variant' : ''}`}>{task.name}</h3>
-              {task.description && <p className="font-body-sm text-xs sm:text-sm text-on-surface-variant mt-0.5">{task.description}</p>}
+              <h3 className={`font-body-md text-sm sm:text-base text-on-surface font-semibold mt-1 break-words ${isCompleted ? 'line-through text-on-surface-variant' : ''}`}>{task.name}</h3>
+              {task.description && <p className="font-body-sm text-xs sm:text-sm text-on-surface-variant mt-0.5 break-words">{task.description}</p>}
               {task.notes && <div className="mt-2 text-xs text-on-surface-variant bg-surface-container-low p-2 rounded-xl flex items-center gap-1.5 border border-outline-variant/70"><span className="material-symbols-outlined text-[15px] text-primary-ink flex-shrink-0">note</span><span className="truncate">{task.notes}</span></div>}
               {task.tags && task.tags.length > 0 && <div className="flex gap-1.5 mt-2 flex-wrap">{task.tags.map((tag) => <span key={tag} className="text-[10px] px-2 py-0.5 rounded-md bg-surface-container-low text-on-surface-variant font-medium border border-outline-variant/60">#{tag}</span>)}</div>}
             </div>

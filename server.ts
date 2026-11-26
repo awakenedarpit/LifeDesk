@@ -124,7 +124,15 @@ const createResendSender = (resendApiKey: string): FeedbackEmailSender => ({
       }
 
       const data = (await resendRes.json()) as { id?: string };
-      return { ok: true, id: data.id || null };
+      const confirmedId = typeof data?.id === 'string' ? data.id.trim() : '';
+      if (!confirmedId) {
+        return {
+          ok: false,
+          statusCode: 502,
+          error: 'Email delivery service did not return a confirmation ID.',
+        };
+      }
+      return { ok: true, id: confirmedId };
     } catch {
       return {
         ok: false,
@@ -250,6 +258,10 @@ async function startServer() {
         rating: Number(body.rating),
         subject: String(body.subject || ''),
         message: String(body.message || ''),
+        pageContext:
+          typeof body.pageContext === 'string' && body.pageContext.trim()
+            ? body.pageContext.trim().slice(0, 160)
+            : 'Profile & Settings (/profile)',
         createdAt:
           typeof body.createdAt === 'string' && body.createdAt.trim()
             ? body.createdAt.trim()
@@ -263,28 +275,32 @@ async function startServer() {
     }
 
     const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
+    // Never trust client-provided userId, senderName, or senderEmail as proof of identity.
     const result = await processFeedbackNotification(
       {
         feedbackId,
         authenticatedUser: {
           id: verifiedUser.id,
-          fullName:
-            verifiedUser.fullName ||
-            (typeof body.senderName === 'string' ? body.senderName : undefined),
-          email:
-            verifiedUser.email ||
-            (typeof body.senderEmail === 'string' ? body.senderEmail : undefined),
+          fullName: verifiedUser.fullName,
+          email: verifiedUser.email,
         },
         fromEmail: process.env.FEEDBACK_FROM_EMAIL,
+        siteUrl: process.env.LIFEDESK_APP_URL,
       },
       serverFeedbackStore,
       createResendSender(resendApiKey)
     );
 
+    if (result.rateLimited) {
+      res.setHeader('Retry-After', '900');
+    }
+
     res.status(result.httpStatus).json({
       forwarded: result.forwarded,
       alreadySent: Boolean(result.alreadySent),
       inProgress: Boolean(result.inProgress),
+      rateLimited: Boolean(result.rateLimited),
+      duplicateSuppressed: Boolean(result.duplicateSuppressed),
       configured: Boolean(resendApiKey),
       feedbackId: result.feedbackId,
       emailStatus: result.emailStatus,
