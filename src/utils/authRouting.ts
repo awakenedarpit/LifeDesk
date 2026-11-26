@@ -1,12 +1,17 @@
 import { AppNavTab } from '../types';
 
 export type AuthRouteMode = 'login' | 'signup' | 'forgot' | 'reset';
+export type PublicRoutePage = 'privacy';
 
 export const AUTH_ROUTES: Record<AuthRouteMode, string> = {
   login: '/login',
   signup: '/signup',
   forgot: '/forgot-password',
   reset: '/reset-password',
+};
+
+export const PUBLIC_ROUTES: Record<PublicRoutePage, string> = {
+  privacy: '/privacy',
 };
 
 export const PROTECTED_ROUTES: Record<AppNavTab, string> = {
@@ -31,6 +36,12 @@ export function isRecoveryUrl(search = '', hash = ''): boolean {
   const s = (search || '').toLowerCase();
   const h = (hash || '').toLowerCase();
   return s.includes('type=recovery') || h.includes('type=recovery');
+}
+
+export function parsePublicPageFromPath(pathname: string): PublicRoutePage | null {
+  const p = normalizePathname(pathname).toLowerCase();
+  if (p === '/privacy' || p === '/privacy-policy') return 'privacy';
+  return null;
 }
 
 export function parseAuthModeFromPath(pathname: string): AuthRouteMode | null {
@@ -64,7 +75,8 @@ export interface RouteResolutionInput {
 }
 
 export interface RouteResolutionResult {
-  area: 'auth' | 'app';
+  area: 'public' | 'auth' | 'app';
+  publicPage: PublicRoutePage | null;
   authMode: AuthRouteMode;
   activeTab: AppNavTab;
   canonicalPath: string;
@@ -74,12 +86,25 @@ export interface RouteResolutionResult {
 export function resolveRoute(input: RouteResolutionInput): RouteResolutionResult {
   const pathname = normalizePathname(input.pathname);
   const recovery = input.isPasswordRecovery || isRecoveryUrl(input.search, input.hash);
+  const parsedPublicPage = parsePublicPageFromPath(pathname);
   const parsedAuthMode = parseAuthModeFromPath(pathname);
   const parsedTab = parseTabFromPath(pathname);
+
+  if (parsedPublicPage) {
+    return {
+      area: 'public',
+      publicPage: parsedPublicPage,
+      authMode: 'login',
+      activeTab: 'dashboard',
+      canonicalPath: pathname.toLowerCase(),
+      shouldRedirect: false,
+    };
+  }
 
   if (recovery) {
     return {
       area: 'auth',
+      publicPage: null,
       authMode: 'reset',
       activeTab: 'dashboard',
       canonicalPath: AUTH_ROUTES.reset,
@@ -92,6 +117,7 @@ export function resolveRoute(input: RouteResolutionInput): RouteResolutionResult
     const canonicalPath = AUTH_ROUTES[authMode];
     return {
       area: 'auth',
+      publicPage: null,
       authMode,
       activeTab: 'dashboard',
       canonicalPath,
@@ -103,6 +129,7 @@ export function resolveRoute(input: RouteResolutionInput): RouteResolutionResult
   const canonicalPath = PROTECTED_ROUTES[activeTab];
   return {
     area: 'app',
+    publicPage: null,
     authMode: 'login',
     activeTab,
     canonicalPath,

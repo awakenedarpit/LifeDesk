@@ -22,6 +22,7 @@ export const AuthView: React.FC = () => {
     clearAuthError,
     verificationPendingEmail,
     setVerificationPendingEmail,
+    openPrivacyPolicy,
   } = useApp();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -886,9 +887,21 @@ export const AuthView: React.FC = () => {
               )}
 
               {/* Footer */}
-              <div className="border-t border-outline-variant/60 pt-3 flex items-center justify-center gap-1.5 text-[11px] text-on-surface-variant">
-                <span className="material-symbols-outlined text-[14px] text-primary-ink">lock</span>
-                <span>Protected by Supabase Auth &amp; Row-Level Security</span>
+              <div className="border-t border-outline-variant/60 pt-3 flex flex-col items-center gap-1.5 text-[11px] text-on-surface-variant">
+                <div className="flex items-center justify-center gap-1.5">
+                  <span className="material-symbols-outlined text-[14px] text-primary-ink">lock</span>
+                  <span>Protected by Supabase Auth &amp; Row-Level Security</span>
+                </div>
+                <a
+                  href="/privacy"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    openPrivacyPolicy();
+                  }}
+                  className="font-semibold text-primary-ink hover:underline"
+                >
+                  Privacy Policy
+                </a>
               </div>
             </div>
           </section>

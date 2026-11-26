@@ -16,6 +16,7 @@ import { MoneyView } from './views/MoneyView';
 import { AnalyticsView } from './views/AnalyticsView';
 import { ProfileSettingsView } from './views/ProfileSettingsView';
 import { LearningView } from './views/LearningView';
+import { PrivacyPolicyView } from './views/PrivacyPolicyView';
 
 const SplashLoader: React.FC = () => (
   <div className="min-h-screen w-full flex flex-col items-center justify-center bg-surface text-on-surface px-6">
@@ -30,7 +31,16 @@ const SplashLoader: React.FC = () => (
 );
 
 const MainShell: React.FC = () => {
-  const { isAuthenticated, isPasswordRecovery, isLoading, activeTab } = useApp();
+  const { isAuthenticated, isPasswordRecovery, isLoading, activeTab, publicPage } = useApp();
+
+  if (publicPage === 'privacy') {
+    return (
+      <>
+        <PrivacyPolicyView />
+        <ToastContainer />
+      </>
+    );
+  }
 
   if (isLoading && !isAuthenticated) {
     return (

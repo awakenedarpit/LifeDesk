@@ -17,6 +17,7 @@ export const ProfileSettingsView: React.FC = () => {
     resetPassword,
     isSupabaseConnected,
     refreshData,
+    openPrivacyPolicy,
   } = useApp();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -502,6 +503,18 @@ export const ProfileSettingsView: React.FC = () => {
             <span className="material-symbols-outlined text-[16px]">logout</span>
             <span>Sign Out</span>
           </button>
+
+          <a
+            href="/privacy"
+            onClick={(e) => {
+              e.preventDefault();
+              openPrivacyPolicy();
+            }}
+            className="h-10 px-4 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-semibold flex items-center gap-1.5 border border-outline-variant transition-colors"
+          >
+            <span className="material-symbols-outlined text-[16px] text-primary-ink">shield_lock</span>
+            <span>Privacy Policy</span>
+          </a>
 
           <button
             onClick={() => setDeleteConfirmOpen(true)}

@@ -3,10 +3,35 @@ import assert from 'node:assert/strict';
 import {
   resolveRoute,
   parseAuthModeFromPath,
+  parsePublicPageFromPath,
   parseTabFromPath,
   isRecoveryUrl,
 } from './authRouting.ts';
 import { mapAuthError, isDuplicateSignupResponse } from './authErrors.ts';
+
+test('public /privacy and /privacy-policy routes stay accessible whether signed out or signed in', () => {
+  for (const path of ['/privacy', '/privacy/', '/privacy-policy']) {
+    assert.equal(parsePublicPageFromPath(path), 'privacy');
+
+    const unauthRes = resolveRoute({
+      isAuthenticated: false,
+      isPasswordRecovery: false,
+      pathname: path,
+    });
+    assert.equal(unauthRes.area, 'public');
+    assert.equal(unauthRes.publicPage, 'privacy');
+    assert.equal(unauthRes.shouldRedirect, false);
+
+    const authRes = resolveRoute({
+      isAuthenticated: true,
+      isPasswordRecovery: false,
+      pathname: path,
+    });
+    assert.equal(authRes.area, 'public');
+    assert.equal(authRes.publicPage, 'privacy');
+    assert.equal(authRes.shouldRedirect, false);
+  }
+});
 
 test('unauthenticated user on root or private route is redirected to /login', () => {
   for (const path of ['/', '/dashboard', '/tasks', '/calendar', '/hackathons', '/learning', '/money', '/analytics', '/profile']) {

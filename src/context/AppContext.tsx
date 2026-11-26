@@ -20,9 +20,12 @@ import { getSupabaseConfig, getSupabaseClient } from '../services/supabaseClient
 import { supabaseService } from '../services/supabaseService';
 import {
   AuthRouteMode,
+  PublicRoutePage,
   AUTH_ROUTES,
+  PUBLIC_ROUTES,
   PROTECTED_ROUTES,
   isRecoveryUrl,
+  parsePublicPageFromPath,
   resolveRoute,
 } from '../utils/authRouting';
 import { isDuplicateSignupResponse, mapAuthError, MappedAuthError } from '../utils/authErrors';
@@ -43,6 +46,9 @@ interface AppContextType {
   setActiveTab: (tab: AppNavTab) => void;
   authMode: AuthRouteMode;
   setAuthMode: (mode: AuthRouteMode) => void;
+  publicPage: PublicRoutePage | null;
+  openPrivacyPolicy: () => void;
+  closePublicPage: () => void;
 
   // Connection & Loading state
   isLoading: boolean;
@@ -194,6 +200,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }).activeTab;
   });
 
+  const [publicPage, setPublicPage] = useState<PublicRoutePage | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return parsePublicPageFromPath(window.location.pathname);
+  });
+
   const [authError, setAuthError] = useState<MappedAuthError | null>(null);
   const [verificationPendingEmail, setVerificationPendingEmail] = useState<string | null>(null);
 
@@ -277,6 +288,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const setActiveTab = useCallback(
     (tab: AppNavTab) => {
+      setPublicPage(null);
       if (!isAuthenticated) {
         setAuthModeState('login');
         syncPathToRoute(AUTH_ROUTES.login, false);
@@ -291,6 +303,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const setAuthMode = useCallback(
     (mode: AuthRouteMode) => {
+      setPublicPage(null);
       setAuthError(null);
       setAuthModeState(mode);
       if (mode !== 'reset') {
@@ -300,6 +313,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     },
     [syncPathToRoute]
   );
+
+  const openPrivacyPolicy = useCallback(() => {
+    setPublicPage('privacy');
+    syncPathToRoute(PUBLIC_ROUTES.privacy, false);
+  }, [syncPathToRoute]);
+
+  const closePublicPage = useCallback(() => {
+    setPublicPage(null);
+    if (isAuthenticated && !isPasswordRecovery) {
+      const canonical = PROTECTED_ROUTES[activeTab] || PROTECTED_ROUTES.dashboard;
+      syncPathToRoute(canonical, false);
+    } else {
+      const targetMode = isPasswordRecovery ? 'reset' : authMode;
+      syncPathToRoute(AUTH_ROUTES[targetMode], false);
+    }
+  }, [activeTab, authMode, isAuthenticated, isPasswordRecovery, syncPathToRoute]);
 
   // Enforce route protection whenever auth state or browser history changes
   useEffect(() => {
@@ -314,7 +343,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         hash: window.location.hash,
       });
 
-      if (resolved.area === 'auth') {
+      if (resolved.area === 'public') {
+        setPublicPage(resolved.publicPage);
+      } else if (resolved.area === 'auth') {
+        setPublicPage(null);
         setAuthModeState(resolved.authMode);
         if (resolved.shouldRedirect) {
           // Preserve query/hash on recovery URL until password is reset
@@ -323,6 +355,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
         }
       } else {
+        setPublicPage(null);
         setActiveTabState(resolved.activeTab);
         if (resolved.shouldRedirect) {
           syncPathToRoute(resolved.canonicalPath, replace);
@@ -1660,6 +1693,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setActiveTab,
         authMode,
         setAuthMode,
+        publicPage,
+        openPrivacyPolicy,
+        closePublicPage,
         isLoading,
         isSupabaseConnected,
         recheckSupabaseConnection,
